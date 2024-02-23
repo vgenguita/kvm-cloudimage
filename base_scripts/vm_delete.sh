@@ -11,7 +11,7 @@ EOF
 }
 VM_BASE_DIR="${VM_BASE_DIR:-${HOME}/vms}"
 VM_IMAGE_PATH="${VM_BASE_DIR}/images/$1.img"
-CI_IMAGE_PATH="${VM_BASE_DIR}/images/$1-cidata.img"
+CI_IMAGE_PATH="${VM_BASE_DIR}/images/$1-cidata.iso"
 
 # Validate VM name argument
 if [[ -z "$1" ]]; then
@@ -32,6 +32,7 @@ if [[ -f "$VM_IMAGE_PATH" ]]; then
     rm ${VM_BASE_DIR}/xml/$1.xml
     rm ${VM_BASE_DIR}/ssh/$1*
     rm ${VM_BASE_DIR}/init/$1-user-data
+    rm ${VM_BASE_DIR}/init/$1-meta-data
   else
     echo "VM removal cancelled."
   fi

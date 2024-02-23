@@ -4,11 +4,14 @@
 VM_HOSTNAME=
 VM_BASE_DIR=${VM_BASE_DIR:-"${HOME}/vms"}
 VM_DISK_SIZE=20
+VM_DISK_FORMAT=qcow2
 VM_MEM_SIZE=2048
 VM_VCPUS=2
 VM_BASE_IMAGE=
 VM_OS_VARIANT=
 VM_USERNAME="user"
+VM_BRIDGE_INT=
+LIBVIRT_NET_OPTION="network=default,model=virtio"
 # Functions
 usage()
 {
@@ -20,6 +23,7 @@ Quickly create guest VMs using cloud image files and cloud-init.
 OPTIONS:
    -h      Show this message
    -n      Host name (required)
+   -b      bridge interface name (bridge network is used)
    -r      RAM in MB (defaults to ${VM_MEM_SIZE})
    -c      Number of VCPUs (defaults to ${VM_VCPUS})
    -s      Amount of storage to allocate in GB (defaults to ${VM_DISK_SIZE})
@@ -30,11 +34,62 @@ EOF
 download_base_image()
 {
 if ! test -f "$HOME/vms/base/$VM_OS_VARIANT.qcow2"; then
-  wget -v -O "$HOME/vms/base/$VM_OS_VARIANT.qcow2" "$VM_BASE_IMAGE"
+  wget -v -O "$HOME/vms/base/$VM_OS_VARIANT.${VM_DISK_FORMAT}" ${VM_BASE_IMAGE}
 fi
 }
 
-while getopts "h:n:r:c:s:v" option; do
+gen_linux_user_data()
+{
+VM_USER_PASS=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 8; echo)
+VM_USER_PASS_HASH=$(mkpasswd --method=SHA-512 --rounds=4096 ${VM_USER_PASS})
+cat <<EOF > "$VM_BASE_DIR/init/${VM_HOSTNAME}-user-data"
+#cloud-config
+hostname: ${VM_HOSTNAME}
+# manage_etc_hosts: false
+ssh_pwauth: true
+disable_root: true
+users:
+- name: ${VM_USERNAME}
+  hashed_passwd: ${VM_USER_PASS_HASH}
+  sudo: ALL=(ALL) NOPASSWD:ALL
+  shell: /bin/bash
+  lock-passwd: false
+  ssh_authorized_keys:
+    - ${SSH_PUB_KEY}
+EOF
+}
+
+gen_freebsd_user_data()
+{
+#VM_ROOT_PASS=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 16; echo)
+VM_ROOT_PASS="sasasa123"
+echo "Generated root passwd: ${VM_ROOT_PASS}"
+VM_ROOT_PASS_HASH=$(mkpasswd --method=SHA-512 --rounds=4096 ${VM_ROOT_PASS})
+# Write FreeBSD 13.2 user-data
+VM_USER_PASS="sasasa123"
+VM_USER_PASS_HASH=$(mkpasswd --method=SHA-512 --rounds=4096 ${VM_USER_PASS})
+cat <<EOF > "$VM_BASE_DIR/init/${VM_HOSTNAME}-user-data"
+#cloud-config
+users:
+  - name: root
+    lock_passwd: false
+    hashed_passwd: ${VM_ROOT_PASS}
+  - name: ${VM_USERNAME}
+    ssh_authorized_keys:
+      - ssh-rsa ${SSH_PUB_KEY}
+    groups: wheel
+    ssh_pwauth: true
+    hashed_passwd: ${VM_USER_PASS}
+write_files:
+  - path: /usr/local/etc/sudoers
+    content: |
+      %wheel ALL=(ALL) NOPASSWD: ALL
+    append: true
+EOF
+
+}
+
+while getopts "h:n:net:b:r:c:s:v" option; do
     case "${option}"
     in
         h)
@@ -42,6 +97,7 @@ while getopts "h:n:r:c:s:v" option; do
             exit 0
             ;;
         n) VM_HOSTNAME=${OPTARG};;
+        b) VM_BRIDGE_INT=${OPTARG};;
         r) VM_MEM_SIZE=${OPTARG};;
         c) VM_VCPUS=${OPTARG};;
         s) VM_DISK_SIZE=${OPTARG};;
@@ -64,6 +120,10 @@ if [[ -n $VERBOSE ]]; then
     set -xv
 fi
 
+if [[ -n $VM_BRIDGE_INT ]]; then
+    LIBVIRT_NET_OPTION="model=virtio,bridge=${VM_BRIDGE_INT}"
+fi
+
 mkdir -p "$VM_BASE_DIR"/{images,xml,init,base,ssh}
 
 ## VM Base image
@@ -83,7 +143,7 @@ else
                   VM_BASE_IMAGE='https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img'
                   break;;
           [4]* )  VM_OS_VARIANT='freebsd13.2'
-                  VM_BASE_IMAGE='https://download.freebsd.org/ftp/snapshots/VM-IMAGES/14.0-STABLE/amd64/20240215/FreeBSD-14.0-STABLE-amd64-20240215-090674a3dbf8-266693.qcow2.xz'
+                  VM_BASE_IMAGE='https://object-storage.public.mtl1.vexxhost.net/swift/v1/1dbafeefbd4f4c80864414a441e72dd2/bsd-cloud-image.org/images/freebsd/13.2/2023-04-22/ufs/freebsd-13.2-ufs-2023-04-22.qcow2'
                   break;;
           * ) echo "Please answer 1,2,3,4.";;
       esac
@@ -91,9 +151,10 @@ else
   download_base_image
 fi
 
-echo "Creating a qcow2 image file ${VM_BASE_DIR}/images/${VM_HOSTNAME}.img that uses the cloud image file ${IMG_FQN} as its base"
+
+echo "Creating a qcow2 image file ${VM_BASE_DIR}/images/${VM_HOSTNAME}.img that uses the cloud image file $HOME/vms/base/$VM_OS_VARIANT.${VM_DISK_FORMAT} as its base"
 if ! test -f "${VM_BASE_DIR}/images/${VM_HOSTNAME}.img"; then
-  qemu-img create -b "$HOME/vms/base/${VM_OS_VARIANT}.qcow2" -f qcow2 -F qcow2 "${VM_BASE_DIR}/images/${VM_HOSTNAME}.img" "${VM_DISK_SIZE}G"
+    qemu-img create -b "$HOME/vms/base/${VM_OS_VARIANT}.qcow2" -f qcow2 -F qcow2 "${VM_BASE_DIR}/images/${VM_HOSTNAME}.img" "${VM_DISK_SIZE}G"
 else
   echo "El fichero ${VM_BASE_DIR}/images/${VM_HOSTNAME}.img ya existe"
   exit 1
@@ -110,34 +171,37 @@ else
   SSH_PUB_KEY=$(cat "${VM_BASE_DIR}/ssh/${VM_HOSTNAME}".pub.txt)
   rm "${VM_BASE_DIR}/ssh/${VM_HOSTNAME}".pub.txt
 fi
-cat > "$VM_BASE_DIR/init/${VM_HOSTNAME}-user-data" << EOF
-#cloud-config
 
-hostname: ${VM_HOSTNAME}
-# manage_etc_hosts: false
-ssh_pwauth: false
-disable_root: true
-users:
-- name: ${VM_USERNAME}
-  sudo: ALL=(ALL) NOPASSWD:ALL
-  shell: /bin/bash
-  lock-passwd: false
-  ssh_authorized_keys:
-    - ${SSH_PUB_KEY}
+#cloud-init VM user-data
+if [[ "$VM_OS_VARIANT" == "freebsd13.2" ]]; then
+  gen_freebsd_user_data
+else
+  gen_linux_user_data
+fi
+#cloud-init VM meta-data
+cat > "$VM_BASE_DIR/init/${VM_HOSTNAME}-meta-data" << EOF
+instance-id: ${VM_HOSTNAME}
+local-hostname: ${VM_HOSTNAME}
 EOF
+
+# cloud-localds \
+#   ${VM_BASE_DIR}/images/${VM_HOSTNAME}.iso \
+#   ${VM_BASE_DIR}/init/${VM_HOSTNAME}-user-data
+# sudo genisoimage \
+#   -output ${VM_BASE_DIR}/images/${VM_HOSTNAME}-cidata.iso \
+#   -V cidata -r \
+#   -J ${VM_BASE_DIR}/init/${VM_HOSTNAME}-user-data ${VM_BASE_DIR}/init/${VM_HOSTNAME}-meta-data
 
 virt-install \
   --name ${VM_HOSTNAME} \
   --memory ${VM_MEM_SIZE} \
   --vcpus="${VM_VCPUS}" \
-  --os-type linux \
-  --os-variant ${VM_OS_VARIANT} \
-  --cloud-init root-password-generate=on,user-data=${VM_BASE_DIR}/init/${VM_HOSTNAME}-user-data \
+  --os-variant=${VM_OS_VARIANT} \
   --disk ${VM_BASE_DIR}/images/${VM_HOSTNAME}.img,device=disk,bus=virtio \
-  --network network=default,model=virtio \
+  --network ${LIBVIRT_NET_OPTION} \
   --autostart \
-  --import --noautoconsole
-
+  --import --noautoconsole \
+  --cloud-init user-data=${VM_BASE_DIR}/init/${VM_HOSTNAME}-user-data 
 virsh dumpxml "${VM_HOSTNAME}" > "${VM_BASE_DIR}/xml/${VM_HOSTNAME}.xml"
 
 if [ -n $VERBOSE ]; then

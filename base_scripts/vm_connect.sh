@@ -14,7 +14,7 @@ EOF
 
 connect_vm() {
     local VM_IP=$(./vm_get_ip.sh ${VM})
-    ssh -i ${VM_BASE_DIR}/ssh/${VM} ${VM_USER}@${VM_IP}
+    ssh -i ${VM_BASE_DIR}/ssh/${VM} -l${VM_USER} ${VM_IP}
 }
 if [[ -z "$VM" ]]; then
   usage

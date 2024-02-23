@@ -1,6 +1,8 @@
 # kvm-cloudimage
 Use cloud images on baremetal using libvirt/kvm
-
+# Pre-requisites
+- openssh
+- mkpass (whois)
 ## Creating VMs
 ### Usage
 ```shell
