@@ -133,7 +133,7 @@ else
   while true; do
       read -r -p $'Select VM OS:\n 1.Debian12\n 2.Ubuntu 20.04\n 3.Ubuntu22.04\n 4.FreeBSD 14\n' -n1 answer
       case $answer in
-          [1]* )  VM_OS_VARIANT='debian12'
+          [1]* )  VM_OS_VARIANT='debian11'
                   VM_BASE_IMAGE='https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-generic-amd64.qcow2'
                   break;;
           [2]* )  VM_OS_VARIANT='ubuntu20.04'
@@ -201,7 +201,7 @@ virt-install \
   --network ${LIBVIRT_NET_OPTION} \
   --autostart \
   --import --noautoconsole \
-  --cloud-init user-data=${VM_BASE_DIR}/init/${VM_HOSTNAME}-user-data 
+  --cloud-init root-password-generate=on,user-data=${VM_BASE_DIR}/init/${VM_HOSTNAME}-user-data 
 virsh dumpxml "${VM_HOSTNAME}" > "${VM_BASE_DIR}/xml/${VM_HOSTNAME}.xml"
 
 if [ -n $VERBOSE ]; then

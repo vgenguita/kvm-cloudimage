@@ -1,3 +1,4 @@
+#!/bin/bash
 VM_BASE_DIR=${VM_BASE_DIR:-"${HOME}/vms"}
 VM_USER="user"
 VM=$1
@@ -35,7 +36,7 @@ get_vm_ip_address() {
   echo "$VM_IP_ADDRESS"
 }
 
-function obtener_info_vm() {
+obtener_info_vm() {
   # Obtener el ID del sistema operativo
   # Obtener el ID del sistema operativo
   OS_ID=$(grep -o 'id="[^"]*"' "$1" | tr -d '"' | awk '{print $1}')

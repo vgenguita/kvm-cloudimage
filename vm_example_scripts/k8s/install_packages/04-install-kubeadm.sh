@@ -1,7 +1,6 @@
 #!/bin/bash
 export DEBIAN_FRONTEND=noninteractive
 KUBERNETES_VERSION="1.28.2-00"
-NET_DEVICE=$1
 
 sudo apt-get install -y apt-transport-https ca-certificates curl jq
 sudo curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://dl.k8s.io/apt/doc/apt-key.gpg
