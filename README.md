@@ -1,8 +1,15 @@
 # kvm-cloudimage
 Use cloud images on baremetal using libvirt/kvm
-# Pre-requisites
+
+## Pre-requisites
 - openssh
 - mkpass (whois)
+
+## Links
+- [https://blog.programster.org/create-debian-12-kvm-guest-from-cloud-image](https://blog.programster.org/create-debian-12-kvm-guest-from-cloud-image)
+- [https://earlruby.org/2023/02/quickly-create-guest-vms-using-virsh-cloud-image-files-and-cloud-init/](https://earlruby.org/2023/02/quickly-create-guest-vms-using-virsh-cloud-image-files-and-cloud-init/)
+- [https://sumit-ghosh.com/posts/create-vm-using-libvirt-cloud-images-cloud-init/)](https://sumit-ghosh.com/posts/create-vm-using-libvirt-cloud-images-cloud-init/)
+
 ## Creating VMs
 ### Usage
 ```shell

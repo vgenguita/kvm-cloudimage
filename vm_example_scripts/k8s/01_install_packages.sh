@@ -13,4 +13,5 @@ echo "## Install kubeadm"
 bash 04-install-kubeadm.sh 
 bash 05-update-kubelet-config.sh ${DEVICE}
 echo "## Initialising single node"
-bash $PWD/vm_files/master.sh ${NODE_IP}
+#bash $PWD/vm_files/master.sh ${NODE_IP}
+#bash $PWD/vm_files/node.sh ${NODE_IP}
