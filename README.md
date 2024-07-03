@@ -20,6 +20,7 @@ Quickly create guest VMs using cloud image files and cloud-init.
 OPTIONS:
    -h      Show this message
    -n      Host name (required)
+   -b      bridge interface name (bridge network is used)
    -r      RAM in MB (defaults to 2048)
    -c      Number of VCPUs (defaults to 2)
    -s      Amount of storage to allocate in GB (defaults to 20)
@@ -89,5 +90,4 @@ VM 'ubuntuTest' removed successfully.
 ```
 ## TODO
 
-- FreeBSD support is in progress
-- Only NAT network are allowed by the moment, bridge support is in progress
+- FreeBSD support is still in progress
