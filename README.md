@@ -1,3 +1,93 @@
 # kvm-cloudimage
-
 Use cloud images on baremetal using libvirt/kvm
+
+## Pre-requisites
+- openssh
+- mkpass (whois)
+- arp
+## Links
+- [https://blog.programster.org/create-debian-12-kvm-guest-from-cloud-image](https://blog.programster.org/create-debian-12-kvm-guest-from-cloud-image)
+- [https://earlruby.org/2023/02/quickly-create-guest-vms-using-virsh-cloud-image-files-and-cloud-init/](https://earlruby.org/2023/02/quickly-create-guest-vms-using-virsh-cloud-image-files-and-cloud-init/)
+- [https://sumit-ghosh.com/posts/create-vm-using-libvirt-cloud-images-cloud-init/)](https://sumit-ghosh.com/posts/create-vm-using-libvirt-cloud-images-cloud-init/)
+
+## Creating VMs
+### Usage
+```shell
+usage: ./vm_create.sh options
+
+Quickly create guest VMs using cloud image files and cloud-init.
+
+OPTIONS:
+   -h      Show this message
+   -n      Host name (required)
+   -r      RAM in MB (defaults to 2048)
+   -c      Number of VCPUs (defaults to 2)
+   -s      Amount of storage to allocate in GB (defaults to 20)
+   -v      Verbose
+```
+
+The only required parameter is the hostname, but you can also set RAM size (in MB), number of VCPUs or storage size (in GB), if these parameters are not set, default values will used:
+- RAM: 20248MB
+- VCPUs: 2
+- DISK: 20GB
+
+Actually, you can select these base OS for Guests
+- Debian 12
+- Ubuntu 20.04
+- Ubuntu 22.04
+- FreeBSD 14.1 
+
+### Examples 
+```shell
+./vm_create.sh -ntestMachine
+```
+A VM will ve created with default values
+
+```shell
+./vm_create.sh -ntestMachine -r4098 -c4 -s100
+```
+A VM will be created with 4098 MB of RAM, 4 vCPUs and 100Gb of storage
+
+#### FreeBSD VMs
+
+__Please note that FreeBSD-based VMs do not currently support cloud-init, so once they are created, you need to connect to the machine through the console (using virt-manager or virs-console) and use the root user (without a password). Once inside, you add a password to root and I recommend that you add a non-root user and that the ssh connection is through that user.
+
+Also note that since there is no cloud-init support, you will have to manually copy the generated ssh keys to the machine. I apologize for the inconvenience but I have not yet been able to make it work any other way.__
+
+## List VMs
+```shell
+./vm_list.sh 
+ Id   Nombre       Estado
+-------------------------------
+ 7    debianTest   ejecutando
+ 8    ubuntuTest   ejecutando
+```
+## Connect to an VM
+```shell
+./vm_connect.sh debianTest
+```
+
+## Get ip of VM
+
+Use as parameter machine name
+```shell
+./vm_get_ip.sh ubuntuTest
+192.168.122.234
+```
+
+## Delete VMs
+
+Use as parameter machine name
+```shell
+./vm_delete.sh ubuntuTest
+Are you sure you want to remove the VM 'ubuntuTest' (y/N)? y
+Domain 'ubuntuTest' destroyed
+
+Domain 'ubuntuTest' has been undefined
+
+VM 'ubuntuTest' removed successfully.
+```
+## TODO
+
+- FreeBSD support is in progress
+- Only NAT network are allowed by the moment, bridge support is in progress
