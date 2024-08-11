@@ -150,10 +150,13 @@ else
           [3]* )  VM_OS_VARIANT='ubuntu22.04'
                   VM_BASE_IMAGE='https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img'
                   break;;
-          [4]* )  VM_OS_VARIANT='freebsd14.0'
+          [4]* )  VM_OS_VARIANT='ubuntu24.04'
+                  VM_BASE_IMAGE='https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img'
+                  break;;
+          [5]* )  VM_OS_VARIANT='freebsd14.0'
                   VM_BASE_IMAGE='https://download.freebsd.org/releases/VM-IMAGES/14.0-RELEASE/amd64/Latest/FreeBSD-14.0-RELEASE-amd64.qcow2.xz'
                   break;;
-          * ) echo "Please answer 1,2,3,4.";;
+          * ) echo "Please answer 1,2,3,4,5.";;
       esac
   done
   download_base_image
