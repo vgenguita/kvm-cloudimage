@@ -139,7 +139,7 @@ if [ -n "$VM_BASE_IMAGE" ] && [ -f "$VM_BASE_IMAGE" ]; then
 download_base_image  
 else
   while true; do
-      read -r -p $'Select VM OS:\n 1.Debian12\n 2.Ubuntu 20.04\n 3.Ubuntu22.04\n 4.FreeBSD 14\n' -n1 answer
+      read -r -p $'Select VM OS:\n 1.Debian12\n 2.Ubuntu 20.04\n 3.Ubuntu 22.04\n 4.Ubuntu 24.04 \n 5.FreeBSD 14\n' -n1 answer
       case $answer in
           [1]* )  VM_OS_VARIANT='debian11'
                   VM_BASE_IMAGE='https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-generic-amd64.qcow2'
