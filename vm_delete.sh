@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/env bash
 
 # Function for usage message
 usage() {

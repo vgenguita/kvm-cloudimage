@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/bin/env bash
+
 VM_BASE_DIR=${VM_BASE_DIR:-"${HOME}/vms"}
 VM_USER="user"
 MAC_VM=

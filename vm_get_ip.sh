@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/env bash
 usage() {
   cat << EOF
 USO: $0 VM

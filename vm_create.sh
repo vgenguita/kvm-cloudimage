@@ -1,6 +1,4 @@
-#!/bin/bash
-
-# Variables
+#!/bin/env bash
 VM_HOSTNAME=
 VM_BASE_DIR=${VM_BASE_DIR:-"${HOME}/vms"}
 VM_DISK_SIZE=20
@@ -11,7 +9,8 @@ VM_BASE_IMAGE=
 VM_OS_VARIANT=
 VM_USERNAME="user"
 VM_BRIDGE_INT=
-LIBVIRT_NET_OPTION="network=default,model=e1000"
+VM_NET_USED="default"
+LIBVIRT_NET_OPTION="network=$VM_NET_USED,model=e1000"
 # Functions
 usage()
 {
@@ -31,17 +30,43 @@ OPTIONS:
 EOF
 }
 
+HOST_OS=$(cat /etc/os-release | grep -v VERSION_ID |grep "ID=" | awk -F'=' '{print $2}')
+if [ $HOST_OS == "debian" ]; then
+  source < env_scripts/older_os.sh
+else 
+  source > env_scripts/newer_os.sh
+fi
+
+case $answer in
+          [1]* )  VM_OS_VARIANT=${GUEST_OS_TYPE_DEBIAN}
+                  VM_BASE_IMAGE='https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-generic-amd64.qcow2'
+                  break;;
+          [2]* )  VM_OS_VARIANT='ubuntu20.04'
+                  VM_BASE_IMAGE='https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img'
+                  break;;
+          [3]* )  VM_OS_VARIANT='ubuntu22.04'
+                  VM_BASE_IMAGE='https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img'
+                  break;;
+          [4]* )  VM_OS_VARIANT='ubuntu24.04'
+                  VM_BASE_IMAGE='https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img'
+                  break;;
+          [5]* )  VM_OS_VARIANT='freebsd14.0'
+                  VM_BASE_IMAGE='https://download.freebsd.org/releases/VM-IMAGES/14.0-RELEASE/amd64/Latest/FreeBSD-14.0-RELEASE-amd64.qcow2.xz'
+                  break;;
+          * ) echo "Please answer 1,2,3,4,5.";;
+      esac
+  done
 download_base_image()
 {
-if ! test -f "$HOME/vms/base/$VM_OS_VARIANT.qcow2"; then
+if ! test -f "${VM_BASE_DIR}/base/$VM_OS_VARIANT.qcow2"; then
   if [[ "$VM_OS_VARIANT" == "freebsd14.0" ]]; then
     VM_DISK_FORMAT=".qcow2.xz"
-    wget -v -O "$HOME/vms/base/$VM_OS_VARIANT.${VM_DISK_FORMAT}" ${VM_BASE_IMAGE}
-    cd $HOME/vms/base/
+    wget -v -O "${VM_BASE_DIR}/base/$VM_OS_VARIANT.${VM_DISK_FORMAT}" ${VM_BASE_IMAGE}
+    cd ${VM_BASE_DIR}/base/
     xz -d $VM_OS_VARIANT.${VM_DISK_FORMAT} 
     cd -
   else 
-    wget -v -O "$HOME/vms/base/$VM_OS_VARIANT.${VM_DISK_FORMAT}" ${VM_BASE_IMAGE}
+    wget -v -O "${VM_BASE_DIR}/base/$VM_OS_VARIANT.${VM_DISK_FORMAT}" ${VM_BASE_IMAGE}
   fi
 fi
 }
@@ -163,9 +188,9 @@ else
 fi
 
 
-echo "Creating a qcow2 image file ${VM_BASE_DIR}/images/${VM_HOSTNAME}.img that uses the cloud image file $HOME/vms/base/$VM_OS_VARIANT.${VM_DISK_FORMAT} as its base"
+echo "Creating a qcow2 image file ${VM_BASE_DIR}/images/${VM_HOSTNAME}.img that uses the cloud image file ${VM_BASE_DIR}/base/$VM_OS_VARIANT.${VM_DISK_FORMAT} as its base"
 if ! test -f "${VM_BASE_DIR}/images/${VM_HOSTNAME}.img"; then
-    qemu-img create -b "$HOME/vms/base/${VM_OS_VARIANT}.qcow2" -f qcow2 -F qcow2 "${VM_BASE_DIR}/images/${VM_HOSTNAME}.img" "${VM_DISK_SIZE}G"
+    qemu-img create -b "${VM_BASE_DIR}/base/${VM_OS_VARIANT}.qcow2" -f qcow2 -F qcow2 "${VM_BASE_DIR}/images/${VM_HOSTNAME}.img" "${VM_DISK_SIZE}G"
 else
   echo "El fichero ${VM_BASE_DIR}/images/${VM_HOSTNAME}.img ya existe"
   exit 1

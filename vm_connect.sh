@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/env bash
 #Variables
 VM="$1"
 VM_BASE_DIR=${VM_BASE_DIR:-"${HOME}/vms"}
