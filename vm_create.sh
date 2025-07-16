@@ -1,17 +1,21 @@
 #!/bin/env bash
+source common.sh
 VM_HOSTNAME=
-VM_BASE_DIR=${VM_BASE_DIR:-"${HOME}/vms"}
 VM_DISK_SIZE=20
 VM_DISK_FORMAT=qcow2
 VM_MEM_SIZE=2048
 VM_VCPUS=2
 VM_BASE_IMAGE=
 VM_OS_VARIANT=
-VM_USERNAME="user"
 VM_BRIDGE_INT=
-VM_NET_USED="PU-internalTests"
-LIBVIRT_NET_OPTION="network=$VM_NET_USED,model=e1000"
-HAT_STREAM="stable"
+VM_BASE_IMAGE_LOCATION=
+VM_NET_USED="default"
+#LIBVIRT_NET_OPTION="network=$VM_NET_USED,model=e1000"
+LIBVIRT_NET_MODEL="virtio"
+LIBVIRT_NET_OPTION="network=$VM_NET_USED,model=$LIBVIRT_NET_MODEL"
+
+#LIBVIRT_NET_OPTION="model=e1000"
+
 # Functions
 usage()
 {
@@ -32,46 +36,25 @@ EOF
 }
 
 HOST_OS=$(cat /etc/os-release | grep -v VERSION_ID |grep "ID=" | awk -F'=' '{print $2}')
-if [ "$HOST_OS" == "debian" ]; then
+if [ $HOST_OS == "debian" ]; then
   source env_scripts/older_os.sh
 else 
   source env_scripts/newer_os.sh
 fi
 
+#create_network()
+#{
+#virsh net-define mynet.xml
+#virsh net-autostart mynet
+#virsh net-start mynet
+#}
 download_base_image()
 {
-if ! test -f "${VM_BASE_DIR}/base/$VM_OS_VARIANT.qcow2"; then
-  if [[ "$VM_OS_VARIANT" == "freebsd14.2" ]]; then
-    VM_DISK_FORMAT="qcow2.xz"
-    cd ${VM_BASE_DIR}/base/
-    wget -v -O "${VM_BASE_DIR}/base/$VM_OS_VARIANT.${VM_DISK_FORMAT}" ${VM_BASE_IMAGE}
-    xz -d $VM_OS_VARIANT.${VM_DISK_FORMAT} 
-    mv $VM_OS_VARIANT.${VM_DISK_FORMAT} $VM_OS_VARIANT.img
-    cd -
-  elif [[ "$VM_OS_VARIANT" == "fedora-coreos-stable" ]]; then
-	podman run  --pull=always --rm \
-		-v /dev:/dev -v /run/udev:/run/udev \
-		-v $VM_BASE_DIR/base:/data -w /data \
-		quay.io/coreos/coreos-installer:release \
-		download -s ${HAT_STREAM} -p qemu -f qcow2.xz --decompress -C .
-	mv $VM_BASE_DIR/base/fedora-coreos-*.qcow2 $VM_BASE_DIR/base/"$VM_OS_VARIANT".qcow2
-  else 
-    wget -v -O "${VM_BASE_DIR}/base/$VM_OS_VARIANT.${VM_DISK_FORMAT}" ${VM_BASE_IMAGE}
-  fi
+VM_BASE_IMAGE_NAME=$(basename "${VM_BASE_IMAGE_NAME}" .img)
+VM_BASE_IMAGE_LOCATION="${VM_BASE_DIR}/${VM_BASE_IMAGES}/$VM_BASE_IMAGE_NAME.${VM_DISK_FORMAT}"
+if ! test -f "${VM_BASE_IMAGE_LOCATION}"; then
+  wget -O "${VM_BASE_IMAGE_LOCATION}" ${VM_BASE_IMAGE}
 fi
-}
-
-gen_coreos_data()
-{
-cat <<EOF > "$VM_BASE_DIR/init/${VM_HOSTNAME}-user-data.bu"
-variant: fcos
-version: 1.6.0
-passwd:
-  users:
-    - name: core
-      ssh_authorized_keys:
-        - ${SSH_PUB_KEY}
-EOF
 }
 
 gen_linux_user_data()
@@ -94,6 +77,28 @@ users:
     - ${SSH_PUB_KEY}
 EOF
 }
+
+check_hash()
+{	
+	if [[ "${VM_CHECKSUMS_URL}" == *"SHA256SUMS"* ]]; then
+		HASH_CMD="sha256sum"
+	elif [[ "${VM_CHECKSUMS_URL}" == *"SHA512SUMS"* ]]; then
+		HASH_CMD="sha512sum"
+	else
+		echo "ERROR: Unknown checksum type in URL: $CHECKSUM_URL"
+		exit 1
+	fi
+	BASE_FILE_CHECKSUM=$(${HASH_CMD} -b ${VM_BASE_IMAGE_LOCATION} | awk '{print $1}')
+	if [ "${BASE_FILE_CHECKSUM}" = "${VM_BASE_IMAGE_CHECKSUM}" ]; then
+        echo "Checksum OK: ${BASE_FILE_CHECKSUM}"
+    else
+        echo "ERROR: MD5 checksum does NOT match!"
+        echo "Expected: ${VM_BASE_IMAGE_CHECKSUM}"
+        echo "Got:      ${BASE_FILE_CHECKSUM}"
+        exit 1
+    fi
+}
+
 
 gen_freebsd_user_data()
 {
@@ -125,7 +130,6 @@ EOF
 
 }
 
-
 while getopts "h:n:net:b:r:c:s:v" option; do
     case "${option}"
     in
@@ -146,6 +150,7 @@ while getopts "h:n:net:b:r:c:s:v" option; do
     esac
 done
 
+
 if [[ -z $VM_HOSTNAME ]]; then
     echo "ERROR: Host name is required"
     usage
@@ -164,45 +169,59 @@ fi
 mkdir -p "$VM_BASE_DIR"/{images,xml,init,base,ssh}
 
 ## VM Base image
-if [ -n "$VM_BASE_IMAGE" ] && [ -f "$VM_BASE_IMAGE" ]; then
-download_base_image  
-else
-  while true; do
-      read -r -p $'Select VM OS:\n 1.Debian12\n 2.Ubuntu 20.04\n 3.Ubuntu 22.04\n 4.Ubuntu 24.04 \n 5.FreeBSD 14\n 6.Alpine Linux\n 7.Fedora CoreOS' -n1 answer
-      case $answer in
-          [1]* )  VM_OS_VARIANT='debian11'
-                  VM_BASE_IMAGE='https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-generic-amd64.qcow2'
-                  break;;
-          [2]* )  VM_OS_VARIANT='ubuntu20.04'
-                  VM_BASE_IMAGE='https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img'
-                  break;;
-          [3]* )  VM_OS_VARIANT='ubuntu22.04'
-                  VM_BASE_IMAGE='https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img'
-                  break;;
-          [4]* )  VM_OS_VARIANT='ubuntu24.04'
-                  VM_BASE_IMAGE='https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img'
-                  break;;
-          [5]* )  VM_OS_VARIANT='freebsd14.2'
-                  VM_BASE_IMAGE='https://download.freebsd.org/ftp/releases/VM-IMAGES/14.2-RELEASE/amd64/Latest/FreeBSD-14.2-RELEASE-amd64-BASIC-CLOUDINIT.ufs.qcow2.xz'
-                  break;;
-          [6]* )  VM_OS_VARIANT='alpinelinux3.20'
-                  VM_BASE_IMAGE='https://dl-cdn.alpinelinux.org/alpine/v3.21/releases/cloud/generic_alpine-3.21.2-x86_64-bios-tiny-r0.qcow2"'
-                  break;;
-          [7]* )  VM_OS_VARIANT='fedora-coreos-stable'
-                  #VM_BASE_IMAGE='https://dl-cdn.alpinelinux.org/alpine/v3.21/releases/cloud/generic_alpine-3.21.2-x86_64-bios-tiny-r0.qcow2"'
-                  break;;
-          * ) echo "Please answer 1,2,3,4,5,6,7.";;
-      esac
-  done
-  download_base_image
+# Show dinamic menu
+echo "Select VM OS:"
+for entry in $(jq -r '.os_variants[] | @base64' "$OS_JSON_FILE"); do
+    decoded=$(echo "$entry" | base64 --decode)
+    id=$(echo "$decoded" | jq -r .id)
+    name=$(echo "$decoded" | jq -r .name)
+    echo "$id. $name"
+done
+
+# ID_MAX calculation
+ID_MAX=$(jq -r '[.os_variants[].id] | max' "$OS_JSON_FILE")
+
+# Read input
+read -r -p "Enter your choice [1-${ID_MAX}]: " answer
+if ! [[ "$answer" =~ ^[0-9]+$ ]] || (( answer < 1 || answer > ID_MAX )); then
+    echo "Invalid option. Please enter a number between 1 and ${ID_MAX}."
+    exit 1
 fi
 
+selected=$(jq -r ".os_variants[] | select(.id == $answer)" "$OS_JSON_FILE")
 
-echo "Creating a qcow2 image file ${VM_BASE_DIR}/images/${VM_HOSTNAME}.img that uses the cloud image file ${VM_BASE_DIR}/base/$VM_OS_VARIANT.${VM_DISK_FORMAT} as its base"
+if [ -z "$selected" ]; then
+    echo "Invalid option."
+    exit 1
+fi
+
+# Asignar variables
+VM_OS_VARIANT=$(echo "$selected" | jq -r .variant)
+VM_BASE_IMAGE=$(echo "$selected" | jq -r .url)
+VM_BASE_IMAGE_NAME=$(echo "$selected" | jq -r .origin_image_name)
+VM_BOOT_TYPE=$(echo "$selected" | jq -r .boot_type)
+VM_CHECKSUMS_URL=$(echo "$selected" | jq -r .md5sum)
+CHECKSUM_TMP_FOLDER=$(mktemp)
+curl -s -o "${CHECKSUM_TMP_FOLDER}" "${VM_CHECKSUMS_URL}"
+VM_BASE_IMAGE_CHECKSUM=$(grep "${VM_BASE_IMAGE_NAME}" "${CHECKSUM_TMP_FOLDER}" | awk '{print $1}')
+
+# Download base image
+download_base_image
+check_hash
+
+echo "Creating a qcow2 image file ${VM_BASE_DIR}/images/${VM_HOSTNAME}.img that uses the cloud image file ${VM_BASE_IMAGE_LOCATION} as its base"
 if ! test -f "${VM_BASE_DIR}/images/${VM_HOSTNAME}.img"; then
-    qemu-img create -b "${VM_BASE_DIR}/base/${VM_OS_VARIANT}.qcow2" -f qcow2 -F qcow2 "${VM_BASE_DIR}/images/${VM_HOSTNAME}.img" "${VM_DISK_SIZE}G"
+  #qemu-img create -b "${VM_BASE_DIR}/${VM_BASE_IMAGES}/${VM_OS_VARIANT}.qcow2" -f qcow2 -F qcow2 "${VM_BASE_DIR}/images/${VM_HOSTNAME}.img" "${VM_DISK_SIZE}G"
+  qemu-img convert \
+    -O qcow2  \
+    "${VM_BASE_IMAGE_LOCATION}" \
+    "${VM_BASE_DIR}/images/${VM_HOSTNAME}.img"
+  qemu-img resize \
+    "${VM_BASE_DIR}/images/${VM_HOSTNAME}.img" \
+    "${VM_DISK_SIZE}G"
+  sudo chown -R $USER:libvirt-qemu "${VM_BASE_DIR}/images/${VM_HOSTNAME}.img"
 else
-  echo "El fichero ${VM_BASE_DIR}/images/${VM_HOSTNAME}.img ya existe"
+  echo "El fichero ${VM_BASE_DIR}/images/${VM_HOSTNAME}.img ya existe. Elimina la VM con vm_delete.sh"
   exit 1
 fi
 
@@ -223,7 +242,7 @@ instance-id: ${VM_HOSTNAME}
 local-hostname: ${VM_HOSTNAME}
 EOF
 #cloud-init VM user-data
-if [[ "$VM_OS_VARIANT" == "freebsd14.2" ]]; then
+if [[ "$VM_OS_VARIANT" == "freebsd14.0" ]]; then
   gen_freebsd_user_data
   # genisoimage \
   # -output ${VM_BASE_DIR}/images/${VM_HOSTNAME}-cidata.iso \
@@ -240,50 +259,23 @@ if [[ "$VM_OS_VARIANT" == "freebsd14.2" ]]; then
   # --autostart \
   # --import --noautoconsole \
   # --cloud-init root-password-generate=on,user-data=${VM_BASE_DIR}/init/${VM_HOSTNAME}-user-data 
-elif [[ "$VM_OS_VARIANT" == "fedora-coreos-stable" ]]; then
-  gen_coreos_data
 else
   gen_linux_user_data
 fi
-if [[ "$VM_OS_VARIANT" == "fedora-coreos-stable" ]]; then
-	IGNITION_CONFIG="${VM_BASE_DIR}/init/${VM_HOSTNAME}.ign"
-	BUTANE_CONFIG="$VM_BASE_DIR/init/${VM_HOSTNAME}-user-data.bu"
-	IGNITION_DEVICE_ARG=(--qemu-commandline="-fw_cfg name=opt/com.coreos/config,file=${IGNITION_CONFIG}")
-	#Generate ignition config
-	podman run --interactive --rm quay.io/coreos/butane:release \
-       --pretty --strict < ${BUTANE_CONFIG} > ${IGNITION_CONFIG}
-    chown ${USERNAME}:libvirt-qemu /home/victor/vms/init/*
-    #Install   
-	virt-install \
-		--connect="qemu:///system" \
-		--name ${VM_HOSTNAME} \
-		--memory ${VM_MEM_SIZE} \
-		--vcpus="${VM_VCPUS}" \
-		--os-variant=${VM_OS_VARIANT} \
-		--disk ${VM_BASE_DIR}/images/${VM_HOSTNAME}.img,device=disk,bus=virtio \
-		--autostart \
-		--import --noautoconsole \
-		--network ${LIBVIRT_NET_OPTION} "${IGNITION_DEVICE_ARG[@]}"
-		#https://unix.stackexchange.com/questions/578086/virt-install-error-cant-load-ignit
-else
-  virt-install \
-  --name ${VM_HOSTNAME} \
-  --memory ${VM_MEM_SIZE} \
-  --vcpus="${VM_VCPUS}" \
-  --os-variant=${VM_OS_VARIANT} \
-  --disk ${VM_BASE_DIR}/images/${VM_HOSTNAME}.img,device=disk,bus=virtio \
-  --network ${LIBVIRT_NET_OPTION} \
-  --autostart \
-  --import --noautoconsole \
-  --cloud-init root-password-generate=on,user-data=${VM_BASE_DIR}/init/${VM_HOSTNAME}-user-data 
-# cloud-localds \
-#   ${VM_BASE_DIR}/images/${VM_HOSTNAME}.iso \
-#   ${VM_BASE_DIR}/init/${VM_HOSTNAME}-user-data
-fi
-virsh dumpxml "${VM_HOSTNAME}" > "${VM_BASE_DIR}/xml/${VM_HOSTNAME}.xml"
 
-if [ -n $VERBOSE ]; then
-    set +xv
+VM_INSTALL_OPTS=""
+VM_INSTALL_OPTS="${VM_INSTALL_OPTS} --name ${VM_HOSTNAME}" 
+VM_INSTALL_OPTS="${VM_INSTALL_OPTS} --memory ${VM_MEM_SIZE}" 
+VM_INSTALL_OPTS="${VM_INSTALL_OPTS} --vcpus ${VM_VCPUS}" 
+VM_INSTALL_OPTS="${VM_INSTALL_OPTS} --os-variant=${VM_OS_VARIANT}" 
+VM_INSTALL_OPTS="${VM_INSTALL_OPTS} --disk ${VM_BASE_DIR}/images/${VM_HOSTNAME}.img,device=disk,bus=virtio" 
+VM_INSTALL_OPTS="${VM_INSTALL_OPTS} --network ${LIBVIRT_NET_OPTION}"
+VM_INSTALL_OPTS="${VM_INSTALL_OPTS} --autostart" 
+VM_INSTALL_OPTS="${VM_INSTALL_OPTS} --import --noautoconsole" 
+VM_INSTALL_OPTS="${VM_INSTALL_OPTS} --cloud-init root-password-generate=on,user-data=${VM_BASE_DIR}/init/${VM_HOSTNAME}-user-data" 
+if [ "$VM_BOOT_TYPE" = "UEFI" ]; then
+    VM_INSTALL_OPTS="${VM_INSTALL_OPTS} --boot uefi"
 fi
-# Show running VMs
-virsh list
+eval virt-install $VM_INSTALL_OPTS
+
+virsh dumpxml "${VM_HOSTNAME}" > "${VM_BASE_DIR}/xml/${VM_HOSTNAME}.xml"

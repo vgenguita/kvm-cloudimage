@@ -113,3 +113,15 @@ VM 'ubuntuTest' removed successfully.
 ## TODO
 
 - FreeBSD support is still in progress
+- Check if used commands are available
+./vm_create.sh: línea 52: mkpasswd: orden no encontrada
+./vm_create.sh: línea 259: virt-install: orden no encontrada
+./vm_create.sh: línea 261: virsh: orden no encontrada
+qemu-img wget curl mkpass arp
+sudo apt install --no-install-recommends qemu-system libvirt-clients libvirt-daemon-system whois virtinst net-tools
+sudo chmod 750 /home/victor
+sudo usermod -a -G libvirt $(whoami)
+sudo usermod --append --groups earl libvirt-qemu
+
+- Refactoring variables, functions and scripts calls for legibility and maintenance
+- add script for create default files (network, variables etc)
