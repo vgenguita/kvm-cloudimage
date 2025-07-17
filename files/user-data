@@ -1,0 +1,12 @@
+ssh_pwauth: true
+disable_root: true
+users:
+- name: user
+  ssh_authorized_keys:
+    - __SSH_KEY__
+  sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+  groups: sudo
+  shell: /bin/bash
+  hashed_passwd: __USER_PASSWORD__
+  lock-passwd: false
+
