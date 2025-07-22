@@ -3,7 +3,8 @@
     {
       "id": 1,
       "name": "Debian 12",
-      "variant": "$GUEST_OS_TYPE_DEBIAN",
+      "variant": "debian13",
+      "os_type": "GNULinux",
       "url": "https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-generic-amd64.qcow2",
       "origin_image_name": "debian-12-generic-amd64.qcow2",
       "md5sum": "https://cdimage.debian.org/images/cloud/bookworm/latest/SHA512SUMS", 
@@ -13,6 +14,7 @@
       "id": 2,
       "name": "Ubuntu 20.04 server",
       "variant": "ubuntu20.04",
+      "os_type": "GNULinux",
       "url": "https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img",
       "origin_image_name": "focal-server-cloudimg-amd64.img",
       "md5sum": "https://cloud-images.ubuntu.com/focal/current/SHA256SUMS",
@@ -23,6 +25,7 @@
       "id": 3,
       "name": "Ubuntu 20.04 minimal",
       "variant": "ubuntu20.04",
+      "os_type": "GNULinux",
       "url": "https://cloud-images.ubuntu.com/minimal/releases/focal/release/ubuntu-20.04-minimal-cloudimg-amd64.img",
       "origin_image_name": "ubuntu-20.04-minimal-cloudimg-amd64.img",
       "md5sum": "https://cloud-images.ubuntu.com/minimal/releases/focal/release/SHA256SUMS",
@@ -32,6 +35,7 @@
       "id": 4,
       "name": "Ubuntu 22.04 server",
       "variant": "ubuntu22.04",
+      "os_type": "GNULinux",
       "url": "https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img",
       "origin_image_name": "jammy-server-cloudimg-amd64.img",
       "md5sum": "https://cloud-images.ubuntu.com/jammy/current/SHA256SUMS",
@@ -41,6 +45,7 @@
       "id": 5,
       "name": "Ubuntu 22.04 minimal",
       "variant": "ubuntu22.04",
+      "os_type": "GNULinux",
       "url": "https://cloud-images.ubuntu.com/minimal/releases/jammy/release/ubuntu-22.04-minimal-cloudimg-amd64.img",
       "origin_image_name": "ubuntu-22.04-minimal-cloudimg-amd64.img",
       "md5sum": "https://cloud-images.ubuntu.com/minimal/releases/jammy/release/SHA256SUMS",
@@ -50,6 +55,7 @@
       "id": 6,
       "name": "Ubuntu 24.04 server",
       "variant": "ubuntu22.04",
+      "os_type": "GNULinux",
       "url": "https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img",
       "origin_image_name": "noble-server-cloudimg-amd64.img",
       "md5sum": "https://cloud-images.ubuntu.com/noble/current/SHA256SUMS",
@@ -58,11 +64,21 @@
     {
       "id": 7,
       "name": "Ubuntu 24.04 minimal",
+      "os_type": "GNULinux",
       "variant": "ubuntu22.04",
       "url": "https://cloud-images.ubuntu.com/minimal/releases/noble/release/ubuntu-24.04-minimal-cloudimg-amd64.img",
       "origin_image_name": "ubuntu-24.04-minimal-cloudimg-amd64.img",
       "md5sum": "https://cloud-images.ubuntu.com/minimal/releases/noble/release/SHA256SUMS",
       "boot_type": "uefi"
+    } ,
+    {
+      "id": 8,
+      "name": "FreeBSD 14.3",
+      "os_type": "freebsd",
+      "variant": "freebsd14.2",
+      "url": "https://download.freebsd.org/ftp/snapshots/VM-IMAGES/14.3-STABLE/amd64/Latest/FreeBSD-14.3-STABLE-amd64-BASIC-CLOUDINIT-ufs.qcow2.xz",
+      "origin_image_name": "FreeBSD-14.3-STABLE-amd64-BASIC-CLOUDINIT-ufs.qcow2.xz",
+      "md5sum": "https://download.freebsd.org/ftp/snapshots/VM-IMAGES/14.3-STABLE/amd64/Latest/CHECKSUM.SHA512"
     } 
   ]
 }
