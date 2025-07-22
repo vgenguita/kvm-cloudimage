@@ -12,6 +12,7 @@ check_host_os()
     fi
 }
 
+
 show_vm_menu()
 {
     # Show dinamic menu
@@ -42,6 +43,7 @@ show_vm_menu()
 
     # Asignar variables
     VM_OS_VARIANT=$(echo "$selected" | jq -r .variant)
+    VM_OS_TYPE=$(echo "$selected" | jq -r .os_type)
     VM_BASE_IMAGE_URL=$(echo "$selected" | jq -r .url)
     VM_BASE_IMAGE=$(echo "$selected" | jq -r .origin_image_name)
     VM_BOOT_TYPE=$(echo "$selected" | jq -r .boot_type)
@@ -52,10 +54,14 @@ compare_checksum()
 {
     CHECKSUM_TMP_FOLDER=$(mktemp)
     curl -s -o "${CHECKSUM_TMP_FOLDER}" "${VM_CHECKSUMS_URL}"
-    VM_BASE_IMAGE_CHECKSUM=$(grep "$VM_BASE_IMAGE_NAME.${VM_BASE_IMAGE_EXTENSION}" "${CHECKSUM_TMP_FOLDER}" | awk '{print $1}')
-    if [[ "${VM_CHECKSUMS_URL}" == *"SHA256SUMS"* ]]; then
+    if [[ "$VM_OS_TYPE" == "freebsd" ]]; then
+        VM_BASE_IMAGE_CHECKSUM=$(grep "FreeBSD-14.3-STABLE-amd64-BASIC-CLOUDINIT" "${CHECKSUM_TMP_FOLDER}" | grep "ufs.qcow2.xz" | awk '{print $4}') 
+    else
+        VM_BASE_IMAGE_CHECKSUM=$(grep "$VM_BASE_IMAGE_NAME.${VM_BASE_IMAGE_EXTENSION}" "${CHECKSUM_TMP_FOLDER}" | awk '{print $1}')
+    fi
+    if [[ "${VM_CHECKSUMS_URL}" == *"SHA256"* ]]; then
 	HASH_CMD="sha256sum"
-    elif [[ "${VM_CHECKSUMS_URL}" == *"SHA512SUMS"* ]]; then
+    elif [[ "${VM_CHECKSUMS_URL}" == *"SHA512"* ]]; then
 	HASH_CMD="sha512sum"
     else
 	echo "ERROR: Unknown checksum type in URL: $CHECKSUM_URL"
@@ -185,29 +191,42 @@ vm_delete ()
 }
 vm_download_base_image()
 {
-    VM_BASE_IMAGE_NAME=${VM_BASE_IMAGE%%.*}
-    VM_BASE_IMAGE_EXTENSION=${VM_BASE_IMAGE#*.}
+    if [[ "$VM_OS_TYPE" == "freebsd" ]]; then
+        VM_BASE_IMAGE_NAME="${VM_OS_VARIANT}"
+        VM_BASE_IMAGE_EXTENSION="qcow2.xz"
+    else
+        VM_BASE_IMAGE_NAME=${VM_BASE_IMAGE%%.*}
+        VM_BASE_IMAGE_EXTENSION=${VM_BASE_IMAGE#*.}
+    fi
     VM_BASE_IMAGE_LOCATION="${VM_BASE_DIR}/${VM_BASE_IMAGES}/${VM_BASE_IMAGE_NAME}.${VM_BASE_IMAGE_EXTENSION}"
     if ! test -f "${VM_BASE_IMAGE_LOCATION}"; then
         wget -O "${VM_BASE_IMAGE_LOCATION}" ${VM_BASE_IMAGE_URL}
     fi
 }
 
+
 vm_create_guest_image()
 {
     echo "Creating a qcow2 image file ${VM_BASE_DIR}/images/${VM_HOSTNAME}.${VM_DISK_EXTENSION} that uses the cloud image file ${VM_BASE_IMAGE_LOCATION} as its base"
+    if [[ "$VM_OS_TYPE" == "freebsd" ]]; then
+        if ! test -f "${VM_BASE_DIR}/images/${VM_HOSTNAME}.qcow"; then
+            xz -d ${VM_BASE_IMAGE_LOCATION}
+        fi
+        VM_BASE_IMAGE_EXTENSION="qcow2"
+        VM_BASE_IMAGE_LOCATION="${VM_BASE_DIR}/${VM_BASE_IMAGES}/${VM_BASE_IMAGE_NAME}.${VM_BASE_IMAGE_EXTENSION}"
+    fi
     if ! test -f "${VM_BASE_DIR}/images/${VM_HOSTNAME}.${VM_DISK_EXTENSION}"; then
-    qemu-img convert \
-        -O qcow2  \
-        "${VM_BASE_IMAGE_LOCATION}" \
-        "${VM_BASE_DIR}/images/${VM_HOSTNAME}.${VM_DISK_EXTENSION}"
-    qemu-img resize \
-        "${VM_BASE_DIR}/images/${VM_HOSTNAME}.${VM_DISK_EXTENSION}" \
-        "${VM_DISK_SIZE}G"
-    sudo chown -R $USER:libvirt-qemu "${VM_BASE_DIR}/images/${VM_HOSTNAME}.${VM_DISK_EXTENSION}"
+        qemu-img convert \
+            -O qcow2  \
+            "${VM_BASE_IMAGE_LOCATION}" \
+            "${VM_BASE_DIR}/images/${VM_HOSTNAME}.${VM_DISK_EXTENSION}"
+        qemu-img resize \
+            "${VM_BASE_DIR}/images/${VM_HOSTNAME}.${VM_DISK_EXTENSION}" \
+            "${VM_DISK_SIZE}G"
+        sudo chown -R $USER:libvirt-qemu "${VM_BASE_DIR}/images/${VM_HOSTNAME}.${VM_DISK_EXTENSION}"
     else
-    echo "${VM_BASE_DIR}/images/${VM_HOSTNAME}.${VM_DISK_EXTENSION} already exists. Delete VM with "delete" option"
-    exit 1
+        echo "${VM_BASE_DIR}/images/${VM_HOSTNAME}.${VM_DISK_EXTENSION} already exists. Delete VM with "delete" option"
+        exit 1
     fi
 }
 
@@ -221,10 +240,37 @@ vm_generate_ssh_hey()
   #rm "${VM_BASE_DIR}/ssh/${VM_HOSTNAME}".pub.txt
 }
 
-vm_gen_linux_user_data()
+vm_gen_user_data()
 {
 VM_USER_PASS=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 8; echo)
 VM_USER_PASS_HASH=$(mkpasswd --method=SHA-512 --rounds=4096 ${VM_USER_PASS})
+#FREEBSD GUEST
+if [[ "$VM_OS_TYPE" == "freebsd" ]]; then
+VM_ROOT_PASS=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 8; echo)
+VM_ROOT_PASS_HASH=$(mkpasswd --method=SHA-512 --rounds=4096 ${VM_ROOT_PASS})
+cat <<EOF > "$VM_BASE_DIR/init/${VM_HOSTNAME}-user-data"
+#cloud-config
+hostname: ${VM_HOSTNAME}
+users:
+  - name: root
+    lock_passwd: false
+    hashed_passwd: ${VM_ROOT_PASS}
+    ssh_pwauth: false
+  - name: ${VM_USERNAME}
+    ssh_authorized_keys:
+      - ${SSH_PUB_KEY}.
+    hashed_passwd: ${VM_USER_PASS}
+    groups: wheel
+    ssh_pwauth: true
+
+write_files:
+  - path: /usr/local/etc/sudoers
+    content: |
+      %wheel ALL=(ALL) NOPASSWD: ALL
+    append: true
+EOF
+#LINUX GUEST
+else
 cat <<EOF > "$VM_BASE_DIR/init/${VM_HOSTNAME}-user-data"
 #cloud-config
 hostname: ${VM_HOSTNAME}
@@ -240,21 +286,43 @@ users:
   ssh_authorized_keys:
     - ${SSH_PUB_KEY}
 EOF
+fi
 }
 
-vm_gen_user_data()
-{
-    VM_USER_PASS=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 8; echo)
-    VM_USER_PASS_HASH=$(mkpasswd --method=SHA-512 --rounds=4096 ${VM_USER_PASS})
-    cp files/user-data "$VM_BASE_DIR/init/${VM_HOSTNAME}-user-data"
-    sed -i "s|__SSH_KEY__|${SSH_PUB_KEY}|g" "$VM_BASE_DIR/init/${VM_HOSTNAME}-user-data"
-    sed -i "s| __USER_PASSWORD__|${VM_USER_PASS_HASH}|g" "$VM_BASE_DIR/init/${VM_HOSTNAME}-user-data"
-}
+
+# vm_gen_user_data()
+# {   
+#     VM_USER_DATA_FILE=files/user-data
+#     VM_USER_PASS=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 8; echo)
+#     VM_USER_PASS_HASH=$(mkpasswd --method=SHA-512 --rounds=4096 ${VM_USER_PASS})
+#     #FREEBSD GUEST
+#     if [[ "$VM_OS_TYPE" == "freebsd" ]]; then
+#         VM_ROOT_PASS=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 8; echo)
+#         VM_ROOT_PASS_HASH=$(mkpasswd --method=SHA-512 --rounds=4096 ${VM_ROOT_PASS})
+#         VM_USER_DATA_FILE="files/freebsd-user-data"
+#     fi
+#     cp ${VM_USER_DATA_FILE} "$VM_BASE_DIR/init/${VM_HOSTNAME}-user-data"
+#     sed -i "s|__SSH_KEY__|${SSH_PUB_KEY}|g" "$VM_BASE_DIR/init/${VM_HOSTNAME}-user-data"
+#     sed -i "s| __USER_PASSWORD__|${VM_USER_PASS_HASH}|g" "$VM_BASE_DIR/init/${VM_HOSTNAME}-user-data"
+#     sed -i "s| __USER_NAME__|${VM_USERNAME}|g" "$VM_BASE_DIR/init/${VM_HOSTNAME}-user-data"
+#     if [[ "$VM_OS_TYPE" == "freebsd" ]]; then
+#         sed -i "s| __ROOT_PASSWORD__|${VM_ROOT_PASS_HASH} |g" "$VM_BASE_DIR/init/${VM_HOSTNAME}-user-data"
+#     fi
+# }
 
 vm_gen_meta_data()
 {
     cp files/meta-data "$VM_BASE_DIR/init/${VM_HOSTNAME}-meta-data"
     sed -i "s|__VMname__|${VM_HOSTNAME}|g" "$VM_BASE_DIR/init/${VM_HOSTNAME}-meta-data"
+}
+
+vm_set_guest_type()
+{
+    if [[ "$VM_OS_TYPE" == "freebsd" ]]; then
+        VM_OS_VARIANT=${GUEST_OS_TYPE_FREEBSD}
+    elif  [[ "${VM_OS_VARIANT}" == *"debian13"* ]]; then
+        VM_OS_VARIANT=${GUEST_OS_TYPE_DEBIAN}
+    fi
 }
 
 vm_guest_install()

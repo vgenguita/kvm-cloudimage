@@ -73,9 +73,7 @@ A VM will be created with 4098 MB of RAM, 4 vCPUs and 100Gb of storage
 
 #### FreeBSD VMs
 
-__Please note that FreeBSD-based VMs do not currently support cloud-init, so once they are created, you need to connect to the machine through the console (using virt-manager or virs-console) and use the root user (without a password). Once inside, you add a password to root and I recommend that you add a non-root user and that the ssh connection is through that user.
-
-Also note that since there is no cloud-init support, you will have to manually copy the generated ssh keys to the machine. I apologize for the inconvenience but I have not yet been able to make it work any other way.__
+FreeBSD with cloud-init are now supported!! Just wait a little time to have the VM fully initialized (check it with virt-manager or serial connection manually)
 
 ## List VMs
 ```shell

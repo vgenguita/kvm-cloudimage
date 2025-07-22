@@ -95,6 +95,8 @@ case "${ACTION}" in
         #Read os_options.json and generate guests menu
         #Select guest
         show_vm_menu
+        #Set guest type based on check_host_os
+        vm_set_guest_type
         #Download cloud image
         vm_download_base_image
         #Compare hashes
@@ -106,7 +108,7 @@ case "${ACTION}" in
         #Generate meta-data file for VM
         vm_gen_meta_data
         #Generate user-data file for VM
-        vm_gen_linux_user_data
+        vm_gen_user_data
         #Install VM
         vm_guest_install
         ;;
