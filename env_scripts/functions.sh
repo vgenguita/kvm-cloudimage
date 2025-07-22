@@ -55,7 +55,11 @@ compare_checksum()
     CHECKSUM_TMP_FOLDER=$(mktemp)
     curl -s -o "${CHECKSUM_TMP_FOLDER}" "${VM_CHECKSUMS_URL}"
     if [[ "$VM_OS_TYPE" == "freebsd" ]]; then
-        VM_BASE_IMAGE_CHECKSUM=$(grep "FreeBSD-14.3-STABLE-amd64-BASIC-CLOUDINIT" "${CHECKSUM_TMP_FOLDER}" | grep "ufs.qcow2.xz" | awk '{print $4}') 
+        if [[ "${VM_BASE_IMAGE}" == *"zfs"* ]]; then
+            VM_BASE_IMAGE_CHECKSUM=$(grep "FreeBSD-14.3-STABLE-amd64-BASIC-CLOUDINIT" "${CHECKSUM_TMP_FOLDER}" | grep "zfs.qcow2.xz" | awk '{print $4}') 
+        else
+            VM_BASE_IMAGE_CHECKSUM=$(grep "FreeBSD-14.3-STABLE-amd64-BASIC-CLOUDINIT" "${CHECKSUM_TMP_FOLDER}" | grep "ufs.qcow2.xz" | awk '{print $4}') 
+        fi
     else
         VM_BASE_IMAGE_CHECKSUM=$(grep "$VM_BASE_IMAGE_NAME.${VM_BASE_IMAGE_EXTENSION}" "${CHECKSUM_TMP_FOLDER}" | awk '{print $1}')
     fi
@@ -192,7 +196,11 @@ vm_delete ()
 vm_download_base_image()
 {
     if [[ "$VM_OS_TYPE" == "freebsd" ]]; then
-        VM_BASE_IMAGE_NAME="${VM_OS_VARIANT}"
+        if [[ "${VM_BASE_IMAGE}" == *"zfs"* ]]; then
+            VM_BASE_IMAGE_NAME="${VM_OS_VARIANT}-zfs"
+        else
+            VM_BASE_IMAGE_NAME="${VM_OS_VARIANT}-ufs"
+        fi
         VM_BASE_IMAGE_EXTENSION="qcow2.xz"
     else
         VM_BASE_IMAGE_NAME=${VM_BASE_IMAGE%%.*}
@@ -251,18 +259,23 @@ VM_ROOT_PASS_HASH=$(mkpasswd --method=SHA-512 --rounds=4096 ${VM_ROOT_PASS})
 cat <<EOF > "$VM_BASE_DIR/init/${VM_HOSTNAME}-user-data"
 #cloud-config
 hostname: ${VM_HOSTNAME}
+package_reboot_if_required: true
+package_update: true
+package_upgrade: true
+packages:
+- sudo
+- vim
+ssh_pwauth: false
 users:
   - name: root
     lock_passwd: false
-    hashed_passwd: ${VM_ROOT_PASS}
-    ssh_pwauth: false
+    hashed_passwd: ${VM_ROOT_PASS_HASH}
   - name: ${VM_USERNAME}
     ssh_authorized_keys:
-      - ${SSH_PUB_KEY}.
-    hashed_passwd: ${VM_USER_PASS}
+      - ${SSH_PUB_KEY}
+    lock_passwd: true
     groups: wheel
-    ssh_pwauth: true
-
+    shell: /bin/tcsh
 write_files:
   - path: /usr/local/etc/sudoers
     content: |
@@ -343,5 +356,6 @@ vm_guest_install()
     eval virt-install $VM_INSTALL_OPTS
 
     virsh dumpxml "${VM_HOSTNAME}" > "${VM_BASE_DIR}/xml/${VM_HOSTNAME}.xml"
-
+    echo "Root password: $VM_ROOT_PASS"
+    echo "User password: $VM_USER_PASS"
 }
