@@ -1,4 +1,4 @@
-#!/bin/env bash
+#!/usr/bin/env -S bash
 
 source env_scripts/common.sh
 source env_scripts/functions.sh
@@ -9,30 +9,41 @@ VM_DISK_SIZE=10
 
 # Function to display usage message
 usage() {
-    echo "Usage: $0 create -n NAME [-b BRIDGE] [-r RAM] [-c VCPUS] [-s DISK] [-v]"
-    echo "       $0 delete -n NAME"
-    echo "       $0 info -n NAME"
-    echo "       $0 connect -n NAME"
-    echo "       $0 list"
-    echo ""
-    echo "Actions:"
-    echo "  create     Create a new virtual machine"
-    echo "  delete     Delete a virtual machine"
-    echo "  list       List all defined virtual machines"
-    echo "  info       Show information about a virtual machine"
-    echo "  connect    Connect to the console of a virtual machine"
-    echo ""
-    echo "Options for 'create':"
-    echo "  -h         Show this help message"
-    echo "  -n NAME    Host name (required)"
-    echo "  -b BRIDGE  Bridge interface name"
-    echo "  -r RAM     RAM in MB (default: ${VM_MEM_SIZE})"
-    echo "  -c VCPUS   Number of VCPUs (default: ${VM_VCPUS})"
-    echo "  -s DISK    Disk size in GB (default: ${VM_DISK_SIZE})"
-    echo "  -v         Verbose mode"
+    less << EOF
+NAME
+  $0
+
+USAGE
+    Usage:  $0 create -n NAME [-b BRIDGE] [-r RAM] [-c VCPUS] [-s DISK] [-v]
+            $0 delete NAME
+            $0 info NAME
+            $0 connect NAME
+            $0 list
+
+ACTIONS
+  create     Create a new virtual machine
+  delete     Delete a virtual machine
+  list       List all defined virtual machines
+  info       Show information about a virtual machine
+  connect    Connect to the console of a virtual machine
+
+OPTIONS
+  -h         Show this help message
+  -n NAME    Host name (required)
+  -b BRIDGE  Bridge interface name
+  -r RAM     RAM in MB (default: ${VM_MEM_SIZE})
+  -c VCPUS   Number of VCPUs (default: ${VM_VCPUS})
+  -s DISK    Disk size in GB (default: ${VM_DISK_SIZE})
+  -v         Verbose mode
+  
+AUTHOR
+  Victor Gracia Enguita <victor@burufalla.ovh>
+
+COPYRIGHT
+  This is free software; see the source for copying conditions.
+EOF
     exit 1
 }
-
 # Check if at least one argument is provided
 if [ $# -eq 0 ]; then
     usage
@@ -97,12 +108,16 @@ case "${ACTION}" in
         show_vm_menu
         #Set guest type based on check_host_os
         vm_set_guest_type
-        #Download cloud image
-        vm_download_base_image
-        #Compare hashes
-        compare_checksum
-        #Create guest image
-        vm_create_guest_image
+        if [[ "$VM_OS_TYPE" == "BSD" && "${VM_OS_VARIANT}" == *"openbsd"* ]]; then
+            generate_openbsd_image
+        else
+            #Download cloud image
+            vm_download_base_image
+            #Compare hashes
+            compare_checksum
+            #Create guest image
+            vm_create_guest_image
+        fi
         #Generate ssh key
         vm_generate_ssh_hey
         #Generate meta-data file for VM
@@ -121,8 +136,6 @@ case "${ACTION}" in
         fi
         VM_HOSTNAME="$1"
         source env_scripts/common.sh
-        echo "Action: ${ACTION}"
-        echo "VM Name: ${VM_HOSTNAME}"
         if [[ "${ACTION}" == 'delete' ]]; then
             vm_delete ${VM_HOSTNAME}
 	    elif [[ "${ACTION}" == 'info' ]]; then
@@ -133,7 +146,6 @@ case "${ACTION}" in
         ;;
 
     list)
-        #echo "Action: list"
         vm_list
         ;;
 

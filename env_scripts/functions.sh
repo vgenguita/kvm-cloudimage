@@ -1,6 +1,11 @@
-#!/bin/env bash
+#!/usr/bin/env -S bash
 
 # Functions
+pause()
+{
+ read -s -n 1 -p "Press any key to continue . . ."
+ echo ""
+}
 
 check_host_os()
 {
@@ -13,48 +18,93 @@ check_host_os()
 }
 
 
-show_vm_menu()
+generate_openbsd_image()
 {
-    # Show dinamic menu
-    echo "Select VM OS:"
-    for entry in $(jq -r '.os_variants[] | @base64' "$OS_JSON_FILE"); do
-        decoded=$(echo "$entry" | base64 --decode)
-        id=$(echo "$decoded" | jq -r .id)
-        name=$(echo "$decoded" | jq -r .name)
-        echo "$id. $name"
-    done
-
-    # ID_MAX calculation
-    ID_MAX=$(jq -r '[.os_variants[].id] | max' "$OS_JSON_FILE")
-
-    # Read input
-    read -r -p "Enter your choice [1-${ID_MAX}]: " answer
-    if ! [[ "$answer" =~ ^[0-9]+$ ]] || (( answer < 1 || answer > ID_MAX )); then
-        echo "Invalid option. Please enter a number between 1 and ${ID_MAX}."
+    local CURRENT_PATH="$PWD"
+    VM_BASE_IMAGE_NAME=${VM_BASE_IMAGE%%.*}
+    VM_BASE_IMAGE_EXTENSION=${VM_BASE_IMAGE#*.}
+    git clone https://github.com/hcartiaux/openbsd-cloud-image.git
+    cd openbsd-cloud-image
+    ./build_openbsd_qcow2.sh \
+        --image-file ${VM_BASE_IMAGE_NAME}.${VM_BASE_IMAGE_EXTENSION} \
+        --disklabel custom/disklabel.cloud \
+        --size ${VM_DISK_SIZE} \
+        -b
+    if ! test -f "${VM_BASE_DIR}/images/${VM_HOSTNAME}.${VM_DISK_EXTENSION}"; then
+        mv images/${VM_BASE_IMAGE_NAME}.${VM_BASE_IMAGE_EXTENSION} ${VM_BASE_DIR}/images/${VM_HOSTNAME}.${VM_DISK_EXTENSION}
+        sudo chown -R $USER:libvirt-qemu "${VM_BASE_DIR}/images/${VM_HOSTNAME}.${VM_DISK_EXTENSION}"
+        cd ${CURRENT_PATH}
+        rm -r openbsd-cloud-image
+    else
+        echo "${VM_BASE_DIR}/images/${VM_HOSTNAME}.${VM_DISK_EXTENSION} already exists. Delete VM with "delete" option"
+         cd ${CURRENT_PATH}
+        rm -r openbsd-cloud-image
         exit 1
     fi
-
-    selected=$(jq -r ".os_variants[] | select(.id == $answer)" "$OS_JSON_FILE")
-
-    if [ -z "$selected" ]; then
-        echo "Invalid option."
-        exit 1
-    fi
-
-    # Asignar variables
-    VM_OS_VARIANT=$(echo "$selected" | jq -r .variant)
-    VM_OS_TYPE=$(echo "$selected" | jq -r .os_type)
-    VM_BASE_IMAGE_URL=$(echo "$selected" | jq -r .url)
-    VM_BASE_IMAGE=$(echo "$selected" | jq -r .origin_image_name)
-    VM_BOOT_TYPE=$(echo "$selected" | jq -r .boot_type)
-    VM_CHECKSUMS_URL=$(echo "$selected" | jq -r .md5sum)
 }
 
+show_vm_menu() {
+    # Display dynamic OS selection menu
+    echo "Select VM OS:"
+    echo "--------------"
+
+    # Array to store valid IDs for validation
+    VALID_IDS=()
+    while IFS= read -r entry; do
+        DECODED=$(echo "$entry" | base64 --decode)
+        ID=$(echo "$DECODED" | jq -r '.id')
+        NAME=$(echo "$DECODED" | jq -r '.name')
+        printf "%2s. %s\n" "$ID" "$NAME"
+        VALID_IDS+=("$ID")
+    done < <(jq -r '.os_variants[] | @base64' "$OS_JSON_FILE")
+
+    # Calculate max ID for range validation
+    ID_MAX=$(jq -r '[.os_variants[].id] | max' "$OS_JSON_FILE")
+    ID_MIN=$(jq -r '[.os_variants[].id] | min' "$OS_JSON_FILE")
+
+    # Read user input
+    read -r -p "Enter your choice [${ID_MIN}-${ID_MAX}]: " CHOICE
+
+    # Validate input: must be a number and within range
+    if ! [[ "$CHOICE" =~ ^[0-9]+$ ]]; then
+        echo "Error: Please enter a valid number." >&2
+        exit 1
+    fi
+
+    if (( CHOICE < ID_MIN || CHOICE > ID_MAX )); then
+        echo "Error: Please enter a number between ${ID_MIN} and ${ID_MAX}." >&2
+        exit 1
+    fi
+
+    # Get selected OS variant
+    SELECTED=$(jq -r ".os_variants[] | select(.id == ${CHOICE})" "$OS_JSON_FILE")
+
+    if [ -z "$SELECTED" ]; then
+        echo "Error: Invalid selection." >&2
+        exit 1
+    fi
+
+    # Export variables in uppercase
+    VM_OS_VARIANT=$(echo "$SELECTED" | jq -r '.variant')
+    VM_OS_TYPE=$(echo "$SELECTED" | jq -r '.os_type')
+    VM_BASE_IMAGE_URL=$(echo "$SELECTED" | jq -r '.url')
+    VM_BASE_IMAGE=$(echo "$SELECTED" | jq -r '.origin_image_name')
+    VM_BOOT_TYPE=$(echo "$SELECTED" | jq -r '.boot_type')
+    VM_CHECKSUMS_URL=$(echo "$SELECTED" | jq -r '.md5sum')
+
+    # Optional: Debug
+    # echo "Selected OS variant: ${VM_OS_VARIANT}"
+}
 compare_checksum()
 {
     CHECKSUM_TMP_FOLDER=$(mktemp)
-    curl -s -o "${CHECKSUM_TMP_FOLDER}" "${VM_CHECKSUMS_URL}"
-    if [[ "$VM_OS_TYPE" == "freebsd" ]]; then
+
+    wget -L \
+    --user-agent="Mozilla/5.0 (X11; Linux x86_64)" \
+    -O "${CHECKSUM_TMP_FOLDER}" \
+    "${VM_CHECKSUMS_URL}"
+
+    if [[ "$VM_OS_TYPE" == "BSD" &&  "${VM_OS_VARIANT}" == *"freebsd"* ]]; then
         if [[ "${VM_BASE_IMAGE}" == *"zfs"* ]]; then
             VM_BASE_IMAGE_CHECKSUM=$(grep "FreeBSD-14.3-STABLE-amd64-BASIC-CLOUDINIT" "${CHECKSUM_TMP_FOLDER}" | grep "zfs.qcow2.xz" | awk '{print $4}') 
         else
@@ -63,7 +113,7 @@ compare_checksum()
     else
         VM_BASE_IMAGE_CHECKSUM=$(grep "$VM_BASE_IMAGE_NAME.${VM_BASE_IMAGE_EXTENSION}" "${CHECKSUM_TMP_FOLDER}" | awk '{print $1}')
     fi
-    if [[ "${VM_CHECKSUMS_URL}" == *"SHA256"* ]]; then
+    if [[ "${VM_CHECKSUMS_URL}" == *"SHA256"* || "${VM_CHECKSUMS_URL}" == *"sha256"* ]]; then
 	HASH_CMD="sha256sum"
     elif [[ "${VM_CHECKSUMS_URL}" == *"SHA512"* ]]; then
 	HASH_CMD="sha512sum"
@@ -100,13 +150,13 @@ vm_net_get_ip()
     # Obtener la dirección MAC de la interfaz de red
     MAC_VM=$(vm_net_get_mac $VM)
     if [[ -z "$MAC_VM" ]]; then
-        echo "Error: No se pudo encontrar la dirección MAC para '$VM'"
+        echo "Error: The MAC address could not be found for '$VM'"
         return 1
     fi
     # Obtener la dirección IP a partir de la dirección MAC
     VM_IP_ADDRESS=$(arp -a | grep "$MAC_VM" | awk '{ print $2 }' | sed 's/[()]//g')
     if [[ -z "$VM_IP_ADDRESS" ]]; then
-        echo "Error: No se pudo encontrar la dirección IP para la dirección MAC '$MAC_VM'"
+        echo "Error: Could not find IP address for MAC address '$MAC_VM'"
         return 1
     fi
     echo "$VM_IP_ADDRESS"
@@ -170,7 +220,6 @@ vm_connect()
 vm_delete ()
 {
     local VM=$1
-    echo "VM: $VM"
     if [[ -f "$VM_IMAGE_PATH" ]]; then
     # Safely remove the VM with confirmation
     read -p "Are you sure you want to remove the VM '$VM' (y/N)? " confirm
@@ -195,7 +244,7 @@ vm_delete ()
 }
 vm_download_base_image()
 {
-    if [[ "$VM_OS_TYPE" == "freebsd" ]]; then
+    if [[ "$VM_OS_TYPE" == "BSD" &&  "${VM_OS_VARIANT}" == *"freebsd"* ]]; then
         if [[ "${VM_BASE_IMAGE}" == *"zfs"* ]]; then
             VM_BASE_IMAGE_NAME="${VM_OS_VARIANT}-zfs"
         else
@@ -208,15 +257,17 @@ vm_download_base_image()
     fi
     VM_BASE_IMAGE_LOCATION="${VM_BASE_DIR}/${VM_BASE_IMAGES}/${VM_BASE_IMAGE_NAME}.${VM_BASE_IMAGE_EXTENSION}"
     if ! test -f "${VM_BASE_IMAGE_LOCATION}"; then
-        wget -O "${VM_BASE_IMAGE_LOCATION}" ${VM_BASE_IMAGE_URL}
+       wget -L \
+        --user-agent="Mozilla/5.0 (X11; Linux x86_64)" \
+        -O "${VM_BASE_IMAGE_LOCATION}" \
+        ${VM_BASE_IMAGE_URL}
     fi
 }
 
 
 vm_create_guest_image()
 {
-    echo "Creating a qcow2 image file ${VM_BASE_DIR}/images/${VM_HOSTNAME}.${VM_DISK_EXTENSION} that uses the cloud image file ${VM_BASE_IMAGE_LOCATION} as its base"
-    if [[ "$VM_OS_TYPE" == "freebsd" ]]; then
+    if [[  "$VM_OS_TYPE" == "BSD" &&  "${VM_OS_VARIANT}" == *"freebsd"* ]]; then
         if ! test -f "${VM_BASE_DIR}/images/${VM_HOSTNAME}.qcow"; then
             xz -d ${VM_BASE_IMAGE_LOCATION}
         fi
@@ -248,80 +299,103 @@ vm_generate_ssh_hey()
   #rm "${VM_BASE_DIR}/ssh/${VM_HOSTNAME}".pub.txt
 }
 
+# vm_gen_user_data()
+# {
+# VM_USER_PASS=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 8; echo)
+# VM_USER_PASS_HASH=$(mkpasswd --method=SHA-512 --rounds=4096 ${VM_USER_PASS})
+# #FREEBSD GUEST
+# if [[ "$VM_OS_TYPE" == "BSD" &&  "${VM_OS_VARIANT}" == *"freebsd"*  ]]; then
+# VM_ROOT_PASS=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 8; echo)
+# VM_ROOT_PASS_HASH=$(mkpasswd --method=SHA-512 --rounds=4096 ${VM_ROOT_PASS})
+# cat <<EOF > "$VM_BASE_DIR/init/${VM_HOSTNAME}-user-data"
+# #cloud-config
+# hostname: ${VM_HOSTNAME}
+# package_reboot_if_required: true
+# package_update: true
+# package_upgrade: true
+# packages:
+# - sudo
+# - vim
+# ssh_pwauth: false
+# users:
+#   - name: root
+#     lock_passwd: false
+#     hashed_passwd: ${VM_ROOT_PASS_HASH}
+#   - name: ${VM_USERNAME}
+#     ssh_authorized_keys:
+#       - ${SSH_PUB_KEY}
+#     lock_passwd: true
+#     groups: wheel
+#     shell: /bin/tcsh
+
+# write_files:
+#   - path: /usr/local/etc/sudoers
+#     content: |
+#       %wheel ALL=(ALL) NOPASSWD: ALL
+#     append: true
+# EOF
+# #OPENBSD
+# elif [[ "$VM_OS_TYPE" == "BSD" &&  "${VM_OS_VARIANT}" == *"openbsd"*  ]]; then
+# #"disable_root": true
+# cat <<EOF > "$VM_BASE_DIR/init/${VM_HOSTNAME}-user-data"
+# #cloud-config
+# "hostname": ${VM_HOSTNAME}
+# "package_upgrade": true
+# "packages":
+# - "bash"
+# - "vim--no_x11"
+# "ssh_pwauth": false
+# "users":
+# - "name": ${VM_USERNAME}
+#   "sudo": "ALL=(ALL) NOPASSWD:ALL"
+#   "groups": wheel
+#   "hashed_passwd": "!"
+#   "lock_passwd": true
+#   "shell": "/usr/local/bin/bash"
+#   "ssh_authorized_keys":
+#   - ${SSH_PUB_KEY}
+# - "name": "root"
+#   "hashed_passwd": "!"
+#   "lock_passwd": true
+# write_files:
+#   - path: /etc/sudoers
+#     content: |
+#       %wheel ALL=(ALL) NOPASSWD: ALL
+#     append: true
+# EOF
+# else
+# cat <<EOF > "$VM_BASE_DIR/init/${VM_HOSTNAME}-user-data"
+# #cloud-config
+# hostname: ${VM_HOSTNAME}
+# # manage_etc_hosts: false
+# ssh_pwauth: true
+# disable_root: true
+# users:
+# - name: ${VM_USERNAME}
+#   hashed_passwd: ${VM_USER_PASS_HASH}
+#   sudo: ALL=(ALL) NOPASSWD:ALL
+#   shell: /bin/bash
+#   lock-passwd: false
+#   ssh_authorized_keys:
+#     - ${SSH_PUB_KEY}
+# EOF
+# fi
+# }
+
+
 vm_gen_user_data()
 {
-VM_USER_PASS=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 8; echo)
-VM_USER_PASS_HASH=$(mkpasswd --method=SHA-512 --rounds=4096 ${VM_USER_PASS})
-#FREEBSD GUEST
-if [[ "$VM_OS_TYPE" == "freebsd" ]]; then
-VM_ROOT_PASS=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 8; echo)
-VM_ROOT_PASS_HASH=$(mkpasswd --method=SHA-512 --rounds=4096 ${VM_ROOT_PASS})
-cat <<EOF > "$VM_BASE_DIR/init/${VM_HOSTNAME}-user-data"
-#cloud-config
-hostname: ${VM_HOSTNAME}
-package_reboot_if_required: true
-package_update: true
-package_upgrade: true
-packages:
-- sudo
-- vim
-ssh_pwauth: false
-users:
-  - name: root
-    lock_passwd: false
-    hashed_passwd: ${VM_ROOT_PASS_HASH}
-  - name: ${VM_USERNAME}
-    ssh_authorized_keys:
-      - ${SSH_PUB_KEY}
-    lock_passwd: true
-    groups: wheel
-    shell: /bin/tcsh
-write_files:
-  - path: /usr/local/etc/sudoers
-    content: |
-      %wheel ALL=(ALL) NOPASSWD: ALL
-    append: true
-EOF
-#LINUX GUEST
-else
-cat <<EOF > "$VM_BASE_DIR/init/${VM_HOSTNAME}-user-data"
-#cloud-config
-hostname: ${VM_HOSTNAME}
-# manage_etc_hosts: false
-ssh_pwauth: true
-disable_root: true
-users:
-- name: ${VM_USERNAME}
-  hashed_passwd: ${VM_USER_PASS_HASH}
-  sudo: ALL=(ALL) NOPASSWD:ALL
-  shell: /bin/bash
-  lock-passwd: false
-  ssh_authorized_keys:
-    - ${SSH_PUB_KEY}
-EOF
-fi
+    if [[ "$VM_OS_TYPE" == "BSD" &&  "${VM_OS_VARIANT}" == *"freebsd"*  ]]; then
+        VM_USER_DATA_FILE="files/freebsd-user-data"
+    elif [[ "$VM_OS_TYPE" == "BSD" &&  "${VM_OS_VARIANT}" == *"openbsd"*  ]]; then
+        VM_USER_DATA_FILE="files/openbsd-user-data"
+    else
+        VM_USER_DATA_FILE="files/linux-user-data"
+    fi
+    cp ${VM_USER_DATA_FILE} "$VM_BASE_DIR/init/${VM_HOSTNAME}-user-data"
+    sed -i "s|__SSH_PUB_KEY__|${SSH_PUB_KEY}|g" "$VM_BASE_DIR/init/${VM_HOSTNAME}-user-data"
+    sed -i "s|__VM_USERNAME__|${VM_USERNAME}|g" "$VM_BASE_DIR/init/${VM_HOSTNAME}-user-data"
 }
-
-
-# vm_gen_user_data()
-# {   
-#     VM_USER_DATA_FILE=files/user-data
-#     VM_USER_PASS=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 8; echo)
-#     VM_USER_PASS_HASH=$(mkpasswd --method=SHA-512 --rounds=4096 ${VM_USER_PASS})
-#     #FREEBSD GUEST
-#     if [[ "$VM_OS_TYPE" == "freebsd" ]]; then
-#         VM_ROOT_PASS=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 8; echo)
-#         VM_ROOT_PASS_HASH=$(mkpasswd --method=SHA-512 --rounds=4096 ${VM_ROOT_PASS})
-#         VM_USER_DATA_FILE="files/freebsd-user-data"
-#     fi
-#     cp ${VM_USER_DATA_FILE} "$VM_BASE_DIR/init/${VM_HOSTNAME}-user-data"
-#     sed -i "s|__SSH_KEY__|${SSH_PUB_KEY}|g" "$VM_BASE_DIR/init/${VM_HOSTNAME}-user-data"
-#     sed -i "s| __USER_PASSWORD__|${VM_USER_PASS_HASH}|g" "$VM_BASE_DIR/init/${VM_HOSTNAME}-user-data"
-#     sed -i "s| __USER_NAME__|${VM_USERNAME}|g" "$VM_BASE_DIR/init/${VM_HOSTNAME}-user-data"
-#     if [[ "$VM_OS_TYPE" == "freebsd" ]]; then
-#         sed -i "s| __ROOT_PASSWORD__|${VM_ROOT_PASS_HASH} |g" "$VM_BASE_DIR/init/${VM_HOSTNAME}-user-data"
-#     fi
-# }
 
 vm_gen_meta_data()
 {
@@ -331,8 +405,13 @@ vm_gen_meta_data()
 
 vm_set_guest_type()
 {
-    if [[ "$VM_OS_TYPE" == "freebsd" ]]; then
-        VM_OS_VARIANT=${GUEST_OS_TYPE_FREEBSD}
+    if [[ "$VM_OS_TYPE" == "BSD" ]]; then
+        if [[ "${VM_OS_VARIANT}" == *"freebsd"* ]]; then
+            VM_OS_VARIANT=${GUEST_OS_TYPE_FREEBSD}
+        fi
+        if [[ "${VM_OS_VARIANT}" == *"openbsd"* ]]; then
+            VM_OS_VARIANT=${GUEST_OS_TYPE_OPENBSD}
+        fi
     elif  [[ "${VM_OS_VARIANT}" == *"debian13"* ]]; then
         VM_OS_VARIANT=${GUEST_OS_TYPE_DEBIAN}
     fi
@@ -356,6 +435,10 @@ vm_guest_install()
     eval virt-install $VM_INSTALL_OPTS
 
     virsh dumpxml "${VM_HOSTNAME}" > "${VM_BASE_DIR}/xml/${VM_HOSTNAME}.xml"
-    echo "Root password: $VM_ROOT_PASS"
-    echo "User password: $VM_USER_PASS"
+    clear
+    echo  "VM ${VM_HOSTNAME} Created!"
+    echo  "NOTE: It may take some time for the virtual machine to be available if it is a BSD flavor. You can check the status of the virtual machine with the following command:"
+    echo "root pass is(only for BSD flavour): ${VM_USER_PASS}"
+    echo "user pass is: ${VM_USER_PASS}"
+    echo  "virsh console ${VM_HOSTNAME} --safe"
 }

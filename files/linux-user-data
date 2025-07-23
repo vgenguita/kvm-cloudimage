@@ -1,0 +1,14 @@
+#cloud-config
+ssh_pwauth: true
+disable_root: true
+package_reboot_if_required: true
+package_update: true
+package_upgrade: true
+users:
+- name: __VM_USERNAME__
+  ssh_authorized_keys:
+    - __SSH_PUB_KEY__
+  sudo: ["ALL=(ALL) NOPASSWD:ALL"]
+  groups: sudo
+  shell: /bin/bash
+  lock-passwd: true

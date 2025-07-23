@@ -1,0 +1,25 @@
+#cloud-config
+package_reboot_if_required: true
+package_update: true
+package_upgrade: true
+packages:
+- sudo
+- vim
+ssh_pwauth: false
+users:
+- name: __VM_USERNAME__
+  sudo: "ALL=(ALL) NOPASSWD:ALL"
+  groups: wheel
+  hashed_passwd: "!"
+  lock_passwd: true
+  shell: /bin/tcsh
+  ssh_authorized_keys:
+  - __SSH_PUB_KEY__
+- name: root
+  hashed_passwd: "!"
+  lock_passwd: true
+write_files:
+  - path: /usr/local/etc/sudoers
+    content: |
+      %wheel ALL=(ALL) NOPASSWD: ALL
+    append: true

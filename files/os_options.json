@@ -74,7 +74,7 @@
     {
       "id": 8,
       "name": "FreeBSD 14.3 UFS",
-      "os_type": "freebsd",
+      "os_type": "BSD",
       "variant": "freebsd14.2",
       "url": "https://download.freebsd.org/ftp/snapshots/VM-IMAGES/14.3-STABLE/amd64/Latest/FreeBSD-14.3-STABLE-amd64-BASIC-CLOUDINIT-ufs.qcow2.xz",
       "origin_image_name": "FreeBSD-14.3-STABLE-amd64-BASIC-CLOUDINIT-ufs.qcow2.xz",
@@ -83,11 +83,20 @@
     {
       "id": 9,
       "name": "FreeBSD 14.3 ZFS",
-      "os_type": "freebsd",
+      "os_type": "BSD",
       "variant": "freebsd14.2",
       "url": "https://download.freebsd.org/ftp/snapshots/VM-IMAGES/14.3-STABLE/amd64/Latest/FreeBSD-14.3-STABLE-amd64-BASIC-CLOUDINIT-zfs.qcow2.xz",
       "origin_image_name": "FreeBSD-14.3-STABLE-amd64-BASIC-CLOUDINIT-zfs.qcow2.xz",
       "md5sum": "https://download.freebsd.org/ftp/snapshots/VM-IMAGES/14.3-STABLE/amd64/Latest/CHECKSUM.SHA512"
-    }
+    } ,
+    {
+      "id": 10,
+      "name": "OpenBSD 7.7 generic",
+      "os_type": "BSD",
+      "variant": "openbsd7.6",
+      "url": "",
+      "origin_image_name": "openbsd-generic.qcow2",
+      "md5sum": ""
+    } 
   ]
 }

@@ -1,3 +1,4 @@
 #!/bin/env bash
 GUEST_OS_TYPE_DEBIAN="debian13"
 GUEST_OS_TYPE_FREEBSD="freebsd14.2"
+GUEST_OS_TYPE_OPENBSD="openbsd7.6"
