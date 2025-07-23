@@ -1,7 +1,8 @@
 # kvm-cloudimage
-Use cloud images on baremetal using libvirt/kvm
 
-Actually, you can select these base OS for Guests
+Use cloud images on bare metal with libvirt/KVM.
+
+Currently, the following base operating systems are supported for guest VMs:
 - Debian 12
 - Ubuntu 20.04
 - Ubuntu 22.04
@@ -9,13 +10,15 @@ Actually, you can select these base OS for Guests
 - FreeBSD 14.2 with ZFS filesystem
 
 ## Pre-requisites
+
+The following tools must be installed on the host system:
 * `openssh`
 * `arp`
 * `wget`
 * `curl`
 * `libvirt` 
 
-In order to create openbsd images you will also need
+To create OpenBSD images, you will also need:
 
 * `python3`
 * `sudo`
@@ -23,7 +26,7 @@ In order to create openbsd images you will also need
 * `qemu-system-x86_64`
 
 ## Links and credits
-In order to get libvirt installed
+Livbirt host installation
 - [Debian guide](https://wiki.debian.org/KVM)
 - [Ubuntu guide](https://documentation.ubuntu.com/server/how-to/virtualisation/libvirt/)
 - [Fedora guide](https://docs.fedoraproject.org/en-US/quick-docs/virtualization-getting-started/)
@@ -33,14 +36,18 @@ Inspirational sites for the project
 - [https://earlruby.org/2023/02/quickly-create-guest-vms-using-virsh-cloud-image-files-and-cloud-init/](https://earlruby.org/2023/02/quickly-create-guest-vms-using-virsh-cloud-image-files-and-cloud-init/)
 - [https://sumit-ghosh.com/posts/create-vm-using-libvirt-cloud-images-cloud-init/)](https://sumit-ghosh.com/posts/create-vm-using-libvirt-cloud-images-cloud-init/)
 
-For openbsd vm with cloud init, [hcartiaux's openbsd-cloud-image](https://github.com/hcartiaux/openbsd-cloud-image.git) project is used.
+For OpenBSD images with cloud-init support, this project uses: [hcartiaux's openbsd-cloud-image](https://github.com/hcartiaux/openbsd-cloud-image.git)
 
-## Preparing host
+## Preparing the Host
 
-- Define [variables](env_scripts/common.sh) file (env_scripts/common.sh). It's recommended to use a folder on your home directory to avoid libvirt permission problems.
-- launch install.sh
-### AppArmor exception
-If needed
+1. Configure the [variables](env_scripts/common.sh) file (`env_scripts/common.sh`).  
+   It is recommended to place this directory in your home folder to avoid libvirt permission issues.
+
+2. Run the installation script: install.sh
+
+### AppArmor exception (if needed) 
+
+If AppArmor is blocking libvirtd, disable the profile temporarily: 
 
 ```shell
 ln -s /etc/apparmor.d/usr.sbin.libvirtd /etc/apparmor.d/disable/
@@ -96,16 +103,18 @@ COPYRIGHT
 ```
 
 ### Create VM
+Using default values:
 ```shell
 ./vm_manage.sh create -ntestMachine
 ```
-A VM will ve created with default values. you can set then on [env_scripts/common.sh](env_scripts/common.sh) file.
+__Note__: Default values can be customized in the [env_scripts/common.sh](env_scripts/common.sh) file.
 
+
+With custom specifications: 
 ```shell
 ./vm_manage.sh create -ntestMachine -r4098 -c4 -s100
 ```
-A VM will be created with 4098 MB of RAM, 4 vCPUs and 100Gb of storage
-
+This creates a VM with 4096 MB of RAM, 4 vCPUs, and 100 GB of disk space. 
 
 ## List VMs
 ```shell
