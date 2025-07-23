@@ -121,8 +121,6 @@ case "${ACTION}" in
         fi
         VM_HOSTNAME="$1"
         source env_scripts/common.sh
-        echo "Action: ${ACTION}"
-        echo "VM Name: ${VM_HOSTNAME}"
         if [[ "${ACTION}" == 'delete' ]]; then
             vm_delete ${VM_HOSTNAME}
 	    elif [[ "${ACTION}" == 'info' ]]; then
@@ -133,7 +131,6 @@ case "${ACTION}" in
         ;;
 
     list)
-        #echo "Action: list"
         vm_list
         ;;
 

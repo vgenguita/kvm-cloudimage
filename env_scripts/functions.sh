@@ -100,13 +100,13 @@ vm_net_get_ip()
     # Obtener la dirección MAC de la interfaz de red
     MAC_VM=$(vm_net_get_mac $VM)
     if [[ -z "$MAC_VM" ]]; then
-        echo "Error: No se pudo encontrar la dirección MAC para '$VM'"
+        echo "Error: The MAC address could not be found for '$VM'"
         return 1
     fi
     # Obtener la dirección IP a partir de la dirección MAC
     VM_IP_ADDRESS=$(arp -a | grep "$MAC_VM" | awk '{ print $2 }' | sed 's/[()]//g')
     if [[ -z "$VM_IP_ADDRESS" ]]; then
-        echo "Error: No se pudo encontrar la dirección IP para la dirección MAC '$MAC_VM'"
+        echo "Error: Could not find IP address for MAC address '$MAC_VM'"
         return 1
     fi
     echo "$VM_IP_ADDRESS"
@@ -170,7 +170,6 @@ vm_connect()
 vm_delete ()
 {
     local VM=$1
-    echo "VM: $VM"
     if [[ -f "$VM_IMAGE_PATH" ]]; then
     # Safely remove the VM with confirmation
     read -p "Are you sure you want to remove the VM '$VM' (y/N)? " confirm
@@ -215,7 +214,6 @@ vm_download_base_image()
 
 vm_create_guest_image()
 {
-    echo "Creating a qcow2 image file ${VM_BASE_DIR}/images/${VM_HOSTNAME}.${VM_DISK_EXTENSION} that uses the cloud image file ${VM_BASE_IMAGE_LOCATION} as its base"
     if [[ "$VM_OS_TYPE" == "freebsd" ]]; then
         if ! test -f "${VM_BASE_DIR}/images/${VM_HOSTNAME}.qcow"; then
             xz -d ${VM_BASE_IMAGE_LOCATION}
@@ -356,6 +354,8 @@ vm_guest_install()
     eval virt-install $VM_INSTALL_OPTS
 
     virsh dumpxml "${VM_HOSTNAME}" > "${VM_BASE_DIR}/xml/${VM_HOSTNAME}.xml"
-    echo "Root password: $VM_ROOT_PASS"
-    echo "User password: $VM_USER_PASS"
+    clear
+    echo  "VM ${VM_HOSTNAME} Created!"
+    echo  "NOTE: It may take some time for the virtual machine to be available if it is a BSD flavor. You can check the status of the virtual machine with the following command:"
+    echo  "virsh console ${VM_HOSTNAME} --safe"
 }
