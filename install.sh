@@ -3,7 +3,7 @@
 #VM_NETWORK=
 #VM_BASE_DIR=
 #Install dependencies - TODO
-source variables/common.sh
+source env_scripts/common.sh
 
 mkdir -p "${VM_BASE_DIR}"/{images,xml,init,base,ssh}
 cp files/network.xml ${VM_BASE_DIR}/xml/network.xml
