@@ -8,6 +8,7 @@ Currently, the following base operating systems are supported for guest VMs:
 - Ubuntu 22.04
 - FreeBSD 14.3 with UFS filesystem
 - FreeBSD 14.2 with ZFS filesystem
+- OpenBSD 7.7
 
 ## Pre-requisites
 
