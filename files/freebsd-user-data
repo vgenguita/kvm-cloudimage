@@ -6,7 +6,13 @@ packages:
 - sudo
 - vim
 - git
+- qemu-guest-agent
 ssh_pwauth: false
+config:
+  - type: physical
+    name: vtnet0
+    subnets:
+      - type: dhcp
 users:
 - name: __VM_USERNAME__
   sudo: "ALL=(ALL) NOPASSWD:ALL"
@@ -24,3 +30,7 @@ write_files:
     content: |
       %wheel ALL=(ALL) NOPASSWD: ALL
     append: true
+runcmd:
+  - sysrc qemu_guest_agent_enable=YES
+  - sysrc ifconfig_vtnet0="DHCP"
+  - sysrc ifconfig_DEFAULT=""

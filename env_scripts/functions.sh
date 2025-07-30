@@ -429,6 +429,7 @@ vm_guest_install()
     VM_INSTALL_OPTS="${VM_INSTALL_OPTS} --autostart" 
     VM_INSTALL_OPTS="${VM_INSTALL_OPTS} --import --noautoconsole" 
     VM_INSTALL_OPTS="${VM_INSTALL_OPTS} --cloud-init user-data=${VM_BASE_DIR}/init/${VM_HOSTNAME}-user-data,meta-data=$VM_BASE_DIR/init/${VM_HOSTNAME}-meta-data" 
+    VM_INSTALL_OPTS="${VM_INSTALL_OPTS} --channel unix,mode=bind,target_type=virtio,name=org.qemu.guest_agent.0"
     if [ "$VM_BOOT_TYPE" = "UEFI" ]; then
         VM_INSTALL_OPTS="${VM_INSTALL_OPTS} --boot uefi"
     fi

@@ -4,6 +4,11 @@ disable_root: true
 package_reboot_if_required: true
 package_update: true
 package_upgrade: true
+packages:
+- sudo
+- vim
+- git
+- qemu-guest-agent
 users:
 - name: __VM_USERNAME__
   ssh_authorized_keys:
