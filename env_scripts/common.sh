@@ -1,4 +1,5 @@
 #!/bin/env bash
+DISTRO=""
 LIBVIRT_NET_MODEL="virtio"
 LIBVIRT_NET_OPTION="network=$VM_NETWORK,model=$LIBVIRT_NET_MODEL"
 OS_JSON_FILE="files/os_options.json"

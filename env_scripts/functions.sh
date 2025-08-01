@@ -7,6 +7,76 @@ pause()
  echo ""
 }
 
+# Printe messages
+print_info() {
+    echo -e "\e[1;34m[INFO]\e[0m $1"
+}
+
+print_success() {
+    echo -e "\e[1;32m[OK]\e[0m $1"
+}
+
+print_error() {
+    echo -e "\e[1;31m[ERROR]\e[0m $1"
+}
+
+# Detectar distribución
+detect_distro() 
+{
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        DISTRO=$ID
+    # elif [ -f /etc/centos-release ] || [ -f /etc/fedora-release ]; then
+    #     if grep -q "Fedora" /etc/fedora-release; then
+    #         DISTRO="fedora"
+    #     else
+    #         DISTRO="centos"
+    #     fi
+    else
+        print_error "No se pudo detectar la distribución."
+        exit 1
+    fi
+}
+
+
+install_debian_ubuntu() {
+    print_info "Updating packages..."
+    sudo apt update || { print_error "Error updating packages."; exit 1; }
+
+    print_info "Installing libvirt"
+    sudo apt install -y qemu-kvm libvirt-daemon-system libvirt-clients bridge-utils|| {
+        print_error "Error installing packages."
+        exit 1
+    }
+
+    # Habilitar e iniciar el servicio
+    sudo systemctl enable libvirtd || sudo systemctl enable libvirt-bin
+    sudo systemctl start libvirtd || sudo systemctl start libvirt-bin
+}
+
+install_arch() {
+    print_info "Updating packages..."
+    sudo pacman -Syu --noconfirm || { print_error "Error updating packages."; exit 1; }
+
+    print_info "Installing libvirt."
+    sudo pacman -S --noconfirm qemu libvirt virt-manager dnsmasq iptables bridge-utils|| {
+        print_error "Error installing packages."
+        exit 1
+    }
+}
+
+install_fedora() {
+    print_info "Updating packages..."
+    sudo dnf upgrade -y|| { print_error "Error updating packages."; exit 1; }
+
+    print_info "Installing libvirt."
+    sudo sudo dnf install -y @virtualization qemu libvirt bridge-utils|| {
+        print_error "Error installing packages."
+        exit 1
+    }
+}
+
+
 check_host_os()
 {
     local HOST_OS=$(cat /etc/os-release | grep -v VERSION_ID |grep "ID=" | awk -F'=' '{print $2}')
@@ -99,7 +169,7 @@ compare_checksum()
 {
     CHECKSUM_TMP_FOLDER=$(mktemp)
 
-    wget -L \
+    wget --recursive \
     --user-agent="Mozilla/5.0 (X11; Linux x86_64)" \
     -O "${CHECKSUM_TMP_FOLDER}" \
     "${VM_CHECKSUMS_URL}"
@@ -257,7 +327,7 @@ vm_download_base_image()
     fi
     VM_BASE_IMAGE_LOCATION="${VM_BASE_DIR}/${VM_BASE_IMAGES}/${VM_BASE_IMAGE_NAME}.${VM_BASE_IMAGE_EXTENSION}"
     if ! test -f "${VM_BASE_IMAGE_LOCATION}"; then
-       wget -L \
+       wget --recursive \
         --user-agent="Mozilla/5.0 (X11; Linux x86_64)" \
         -O "${VM_BASE_IMAGE_LOCATION}" \
         ${VM_BASE_IMAGE_URL}
