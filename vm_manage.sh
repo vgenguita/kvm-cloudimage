@@ -99,6 +99,7 @@ case "${ACTION}" in
             usage
         fi
         source env_scripts/common.sh
+        detect_distro
         #Check network type
         vm_net_set_bridge_mode
         #Check host os for guest debian type
@@ -108,6 +109,8 @@ case "${ACTION}" in
         show_vm_menu
         #Set guest type based on check_host_os
         vm_set_guest_type
+        #set image permissions 
+        chown_image_permissions
         if [[ "$VM_OS_TYPE" == "BSD" && "${VM_OS_VARIANT}" == *"openbsd"* ]]; then
             generate_openbsd_image
         else

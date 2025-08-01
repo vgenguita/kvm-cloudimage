@@ -73,6 +73,16 @@
     } ,
     {
       "id": 8,
+      "name": "Fedora CLoud",
+      "os_type": "GNULinux",
+      "variant": "fedora41",
+      "url": "    https://download.fedoraproject.org/pub/fedora/linux/releases/42/Cloud/x86_64/images/Fedora-Cloud-Base-Generic-42-1.1.x86_64.qcow2",
+      "origin_image_name": "Fedora-Cloud-Base-Generic-42-1.1.x86_64.qcow2",
+      "md5sum": "https://fedora.mirrorservice.org/fedora/linux/releases/42/Cloud/x86_64/images/Fedora-Cloud-42-1.1-x86_64-CHECKSUM",
+      "boot_type": "bios"
+    } ,
+    {
+      "id": 9,
       "name": "FreeBSD 14.3 UFS",
       "os_type": "BSD",
       "variant": "freebsd14.2",
@@ -81,7 +91,7 @@
       "md5sum": "https://download.freebsd.org/ftp/snapshots/VM-IMAGES/14.3-STABLE/amd64/Latest/CHECKSUM.SHA512"
     } ,
     {
-      "id": 9,
+      "id": 10,
       "name": "FreeBSD 14.3 ZFS",
       "os_type": "BSD",
       "variant": "freebsd14.2",
@@ -90,7 +100,7 @@
       "md5sum": "https://download.freebsd.org/ftp/snapshots/VM-IMAGES/14.3-STABLE/amd64/Latest/CHECKSUM.SHA512"
     } ,
     {
-      "id": 10,
+      "id": 11,
       "name": "OpenBSD 7.7 generic",
       "os_type": "BSD",
       "variant": "openbsd7.6",

@@ -27,7 +27,6 @@ sudo usermod -aG libvirt $(whoami)
 sudo usermod -aG kvm $(whoami)
 sudo systemctl enable libvirtd
 sudo systemctl start libvirtd
-newgrp libvirt
 
 mkdir -p "${VM_BASE_DIR}"/{images,xml,init,base,ssh}
 cp files/network.xml ${VM_BASE_DIR}/xml/network.xml
@@ -35,3 +34,4 @@ sed -i "s/YOURNETWORK/${VM_NETWORK}/g" ${VM_BASE_DIR}/xml/network.xml
 virsh net-define ${VM_BASE_DIR}/xml/network.xml
 virsh net-autostart ${VM_NETWORK}
 virsh net-start ${VM_NETWORK}
+newgrp libvirt

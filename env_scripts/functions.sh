@@ -87,6 +87,13 @@ check_host_os()
     fi
 }
 
+chown_image_permissions(){
+    if [[ "${DISTRO}" == "fedora" ]]; then
+        USER_GROUP="$USER:qemu"
+    else
+        USER_GROUP="$USER:libvirt-qemu"
+    fi
+}
 
 generate_openbsd_image()
 {
@@ -102,7 +109,7 @@ generate_openbsd_image()
         -b
     if ! test -f "${VM_BASE_DIR}/images/${VM_HOSTNAME}.${VM_DISK_EXTENSION}"; then
         mv images/${VM_BASE_IMAGE_NAME}.${VM_BASE_IMAGE_EXTENSION} ${VM_BASE_DIR}/images/${VM_HOSTNAME}.${VM_DISK_EXTENSION}
-        sudo chown -R $USER:libvirt-qemu "${VM_BASE_DIR}/images/${VM_HOSTNAME}.${VM_DISK_EXTENSION}"
+        sudo chown -R ${USER_GROUP} ${VM_BASE_DIR}/images/${VM_HOSTNAME}.${VM_DISK_EXTENSION}
         cd ${CURRENT_PATH}
         rm -r openbsd-cloud-image
     else
@@ -181,15 +188,28 @@ compare_checksum()
             VM_BASE_IMAGE_CHECKSUM=$(grep "FreeBSD-14.3-STABLE-amd64-BASIC-CLOUDINIT" "${CHECKSUM_TMP_FOLDER}" | grep "ufs.qcow2.xz" | awk '{print $4}') 
         fi
     else
-        VM_BASE_IMAGE_CHECKSUM=$(grep "$VM_BASE_IMAGE_NAME.${VM_BASE_IMAGE_EXTENSION}" "${CHECKSUM_TMP_FOLDER}" | awk '{print $1}')
+        #Fedora things
+        if [[ "${VM_OS_VARIANT}" == "fedora41" ]]; then
+            VM_BASE_IMAGE_CHECKSUM=$(grep "${VM_BASE_IMAGE_NAME}.${VM_BASE_IMAGE_EXTENSION}" "${CHECKSUM_TMP_FOLDER}" | grep -v \# | awk '{print $4}')
+        else
+            VM_BASE_IMAGE_CHECKSUM=$(grep "${VM_BASE_IMAGE_NAME}.${VM_BASE_IMAGE_EXTENSION}" "${CHECKSUM_TMP_FOLDER}" | awk '{print $1}')
+        fi
     fi
+
     if [[ "${VM_CHECKSUMS_URL}" == *"SHA256"* || "${VM_CHECKSUMS_URL}" == *"sha256"* ]]; then
-	HASH_CMD="sha256sum"
+        HASH_CMD="sha256sum"
     elif [[ "${VM_CHECKSUMS_URL}" == *"SHA512"* ]]; then
-	HASH_CMD="sha512sum"
+        HASH_CMD="sha512sum"
+    #Fedora things
     else
-	echo "ERROR: Unknown checksum type in URL: $CHECKSUM_URL"
-	exit 1
+	    if grep -qi "SHA256" "${CHECKSUM_TMP_FOLDER}"; then
+            HASH_CMD="sha256sum"
+        elif grep -qi "SHA512" "${CHECKSUM_TMP_FOLDER}"; then
+            HASH_CMD="sha512sum"
+        else
+            echo "ERROR: Cannot determinate checksum type on ${CHECKSUM_TMP_FOLDER}"
+            exit 1
+        fi
     fi
     BASE_FILE_CHECKSUM=$(${HASH_CMD} ${VM_BASE_IMAGE_LOCATION} | awk '{print $1}')
 	if [ "${BASE_FILE_CHECKSUM}" = "${VM_BASE_IMAGE_CHECKSUM}" ]; then
@@ -327,7 +347,7 @@ vm_download_base_image()
     fi
     VM_BASE_IMAGE_LOCATION="${VM_BASE_DIR}/${VM_BASE_IMAGES}/${VM_BASE_IMAGE_NAME}.${VM_BASE_IMAGE_EXTENSION}"
     if ! test -f "${VM_BASE_IMAGE_LOCATION}"; then
-       wget --recursive \
+       wget \
         --user-agent="Mozilla/5.0 (X11; Linux x86_64)" \
         -O "${VM_BASE_IMAGE_LOCATION}" \
         ${VM_BASE_IMAGE_URL}
@@ -352,7 +372,7 @@ vm_create_guest_image()
         qemu-img resize \
             "${VM_BASE_DIR}/images/${VM_HOSTNAME}.${VM_DISK_EXTENSION}" \
             "${VM_DISK_SIZE}G"
-        sudo chown -R $USER:libvirt-qemu "${VM_BASE_DIR}/images/${VM_HOSTNAME}.${VM_DISK_EXTENSION}"
+        sudo chown -R ${USER_GROUP} ${VM_BASE_DIR}/images/${VM_HOSTNAME}.${VM_DISK_EXTENSION}
     else
         echo "${VM_BASE_DIR}/images/${VM_HOSTNAME}.${VM_DISK_EXTENSION} already exists. Delete VM with "delete" option"
         exit 1
@@ -506,7 +526,7 @@ vm_guest_install()
     eval virt-install $VM_INSTALL_OPTS
 
     virsh dumpxml "${VM_HOSTNAME}" > "${VM_BASE_DIR}/xml/${VM_HOSTNAME}.xml"
-    clear
+    #clear
     echo  "VM ${VM_HOSTNAME} Created!"
     echo  "NOTE: It may take some time for the virtual machine to be available if it is a BSD flavor. You can check the status of the virtual machine with the following command:"
     echo "root pass is(only for BSD flavour): ${VM_USER_PASS}"
