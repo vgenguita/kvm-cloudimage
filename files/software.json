@@ -1,0 +1,24 @@
+{
+  "software": [
+    {
+      "id": 1,
+      "show_name": "Docker",
+      "name": "docker"
+    },
+    {
+      "id": 2,
+      "show_name": "Podman",
+      "name": "podman"
+    },
+    {
+      "id": 3,
+      "show_name": "Gitlab CE",
+      "name": "gitlab_ce"
+    },
+    {
+      "id": 4,
+      "show_name": "Gitlab Runner",
+      "name": "gitlab_runner"
+    }
+  ]
+}

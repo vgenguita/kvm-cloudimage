@@ -67,8 +67,8 @@ sudo virsh --connect qemu:///session net-define /dev/stdin << EOF
 </network>
 EOF
 ``` -->
-## Examples
-### Command usage
+## Command Usage
+### Command help
 ```shell
 NAME
   ./vm_manage.sh
@@ -78,6 +78,7 @@ USAGE
             ./vm_manage.sh delete NAME
             ./vm_manage.sh info NAME
             ./vm_manage.sh connect NAME
+            ./vm_manage.sh install NAME
             ./vm_manage.sh list
 
 ACTIONS
@@ -86,6 +87,7 @@ ACTIONS
   list       List all defined virtual machines
   info       Show information about a virtual machine
   connect    Connect to the console of a virtual machine
+  install    Install specific software into an existing VM
 
 OPTIONS
   -h         Show this help message
@@ -149,6 +151,24 @@ Domain 'ubuntuTest' has been undefined
 
 VM 'ubuntuTest' removed successfully.
 ```
+## Install software on VM
+
+
+`./vm_manage.sh install VM_NAME`
+
+Example:
+
+```shell
+./vm_manage.sh install Debian
+Select software to install:
+--------------
+ 1. Docker
+ 2. Podman
+ 3. Gitlab CE
+ 4. Gitlab Runner
+Enter your choice [1-4]: 
+```
+
 ## TODO
 
   - Maybe add more BSD flavours guests support

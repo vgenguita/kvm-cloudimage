@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 HAPROXY_URL="https://github.com/haproxytech/kubernetes-ingress/releases/download/v1.10.11/haproxy-ingress-controller_1.10.11_Linux_x86_64.tar.gz"
 # Install HAProxy
 apt update

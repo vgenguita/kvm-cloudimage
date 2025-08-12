@@ -18,6 +18,7 @@ USAGE
             $0 delete NAME
             $0 info NAME
             $0 connect NAME
+            $0 install NAME
             $0 list
 
 ACTIONS
@@ -26,6 +27,7 @@ ACTIONS
   list       List all defined virtual machines
   info       Show information about a virtual machine
   connect    Connect to the console of a virtual machine
+  install    Install specific software into an existing VM
 
 OPTIONS
   -h         Show this help message
@@ -147,7 +149,11 @@ case "${ACTION}" in
             vm_connect ${VM_HOSTNAME}
 	    fi
         ;;
-
+    install)
+        VM_HOSTNAME="$1"
+        show_software_menu
+        vm_install_utils $VM_HOSTNAME
+        ;;
     list)
         vm_list
         ;;

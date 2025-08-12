@@ -175,11 +175,12 @@ show_vm_menu() {
 compare_checksum()
 {
     CHECKSUM_TMP_FOLDER=$(mktemp)
-
-    wget --recursive \
-    --user-agent="Mozilla/5.0 (X11; Linux x86_64)" \
-    -O "${CHECKSUM_TMP_FOLDER}" \
+    curl -L -o "${CHECKSUM_TMP_FOLDER}" \
     "${VM_CHECKSUMS_URL}"
+    # wget --recursive \
+    # --user-agent="Mozilla/5.0 (X11; Linux x86_64)" \
+    # -O "${CHECKSUM_TMP_FOLDER}" \
+    # "${VM_CHECKSUMS_URL}"
 
     if [[ "$VM_OS_TYPE" == "BSD" &&  "${VM_OS_VARIANT}" == *"freebsd"* ]]; then
         if [[ "${VM_BASE_IMAGE}" == *"zfs"* ]]; then
@@ -347,10 +348,14 @@ vm_download_base_image()
     fi
     VM_BASE_IMAGE_LOCATION="${VM_BASE_DIR}/${VM_BASE_IMAGES}/${VM_BASE_IMAGE_NAME}.${VM_BASE_IMAGE_EXTENSION}"
     if ! test -f "${VM_BASE_IMAGE_LOCATION}"; then
-       wget \
-        --user-agent="Mozilla/5.0 (X11; Linux x86_64)" \
-        -O "${VM_BASE_IMAGE_LOCATION}" \
-        ${VM_BASE_IMAGE_URL}
+    #    wget \
+    #     --user-agent="Mozilla/5.0 (X11; Linux x86_64)" \
+    #     -O "${VM_BASE_IMAGE_LOCATION}" \
+    #     ${VM_BASE_IMAGE_URL}
+
+        curl -L ${VM_BASE_IMAGE_URL} \
+            -o ${VM_BASE_IMAGE_LOCATION} \
+        
     fi
 }
 
@@ -532,4 +537,126 @@ vm_guest_install()
     echo "root pass is(only for BSD flavour): ${VM_USER_PASS}"
     echo "user pass is: ${VM_USER_PASS}"
     echo  "virsh console ${VM_HOSTNAME} --safe"
+}
+vm_get_guest_info()
+{
+  # Obtener el ID del sistema operativo
+  # Obtener el ID del sistema operativo
+  OS_ID=$(grep -o 'id="[^"]*"' "$1" | tr -d '"' | awk '{print $1}')
+
+  # Eliminar el protocolo y el dominio del ID
+  OS_ID=$(echo "$OS_ID" | cut -d '/' -f 2-)
+  #echo $OS_ID
+  # Convertir la URL a un nombre de distribución y versión
+  VM_DISTRO=$(echo "$OS_ID" | awk -F '/' '{print $3}')
+  VM_VERSION=$(echo "$OS_ID" | awk -F '/' '{print $4}')    
+}
+
+show_software_menu() {
+    # Display dynamic OS selection menu
+    echo "Select software to install:"
+    echo "--------------"
+
+    # Array to store valid IDs for validation
+    VALID_IDS=()
+    while IFS= read -r entry; do
+        DECODED=$(echo "$entry" | base64 --decode)
+        ID=$(echo "$DECODED" | jq -r '.id')
+        NAME=$(echo "$DECODED" | jq -r '.show_name')
+        printf "%2s. %s\n" "$ID" "$NAME"
+        VALID_IDS+=("$ID")
+    done < <(jq -r '.software[] | @base64' "$OS_JSON_FILE_INSTALL")
+
+    # Calculate max ID for range validation
+    ID_MAX=$(jq -r '[.software[].id] | max' "$OS_JSON_FILE_INSTALL")
+    ID_MIN=$(jq -r '[.software[].id] | min' "$OS_JSON_FILE_INSTALL")
+
+    # Read user input
+    read -r -p "Enter your choice [${ID_MIN}-${ID_MAX}]: " CHOICE
+
+    # Validate input: must be a number and within range
+    if ! [[ "$CHOICE" =~ ^[0-9]+$ ]]; then
+        echo "Error: Please enter a valid number." >&2
+        exit 1
+    fi
+
+    if (( CHOICE < ID_MIN || CHOICE > ID_MAX )); then
+        echo "Error: Please enter a number between ${ID_MIN} and ${ID_MAX}." >&2
+        exit 1
+    fi
+
+    # Get selected OS variant
+    SELECTED=$(jq -r ".software[] | select(.id == ${CHOICE})" "$OS_JSON_FILE_INSTALL")
+
+    if [ -z "$SELECTED" ]; then
+        echo "Error: Invalid selection." >&2
+        exit 1
+    fi
+
+    # Export variables in uppercase
+    VM_SOFT=$(echo "$SELECTED" | jq -r '.name')
+    
+}
+
+vm_install_utils()
+{
+    local VM=$1
+    local SCRIPT=''
+    local VM_DISTRO=''
+    local VM_VERSION=''
+    local VM_IP=$(vm_net_get_ip "$VM")
+    vm_get_guest_info ${VM_BASE_DIR}/xml/${VM}.xml
+    case ${VM_SOFT} in
+        docker)  
+            if [[ "$VM_DISTRO" == "debian" ]]; then 
+                SCRIPT='vm_example_scripts/docker_debian.sh'
+            elif [[ "$VM_DISTRO" == "ubuntu" ]]; then  
+                SCRIPT='vm_example_scripts/docker_ubuntu.sh'
+            elif [[ "$VM_DISTRO" == "fedora" ]]; then 
+                SCRIPT='vm_example_scripts/docker_fedora.sh'
+            elif [[ "$VM_DISTRO" == "freebsd" ]]; then 
+                echo "Automated installation for Docker on ${VM_DISTRO} is not available."
+                echo "It's better to use Pidman instead"
+                exit 1
+            fi
+            ;;
+        podman)
+            if [[ "$VM_DISTRO" == "debian" || "$VM_DISTRO" == "ubuntu" ]]; then 
+                SCRIPT='vm_example_scripts/podman_deb.sh'
+            elif [[ "$VM_DISTRO" == "fedora" ]]; then 
+                SCRIPT='vm_example_scripts/podman_fedora.sh'
+            elif [[ "$VM_DISTRO" == "freebsd" ]]; then 
+                SCRIPT='vm_example_scripts/podman_freebsd.sh'
+            fi
+            ;;
+        gitlab_ce)
+            if [[ "$VM_DISTRO" == "debian" || "$VM_DISTRO" == "ubuntu" ]]; then 
+                SCRIPT='vm_example_scripts/gitlab_ce_deb.sh'
+            elif [[ "$VM_DISTRO" == "fedora"  || "$VM_DISTRO" == "freebsd" ]]; then 
+                #SCRIPT='vm_example_scripts/gitlab_ce_fedora.sh'
+                echo "Automated installation for Gitlab CE on ${VM_DISTRO} is not available by the moment."
+                exit 1
+            fi
+            ;;
+        gitlab_runner)
+            if [[ "$VM_DISTRO" == "debian" || "$VM_DISTRO" == "ubuntu" ]]; then 
+                SCRIPT='vm_example_scripts/gitlab_runner_deb.sh'
+            elif [[ "$VM_DISTRO" == "fedora" ]]; then 
+                SCRIPT='vm_example_scripts/gitlab_runner_fedora.sh'
+            elif [[ "$VM_DISTRO" == "freebsd" ]]; then 
+                SCRIPT='vm_example_scripts/gitlab_runner_freebsd.sh'
+            fi
+            ;;
+        *)
+            echo "Unknown action: ${ACTION}" >&2
+            usage
+            ;;      
+    esac
+    #Exec script
+    #bash ${SCRIPT}
+    if [[ "$VM_DISTRO" == "freebsd" ]]; then 
+        ssh -i ${VM_BASE_DIR}/ssh/${VM} -l${VM_USERNAME} ${VM_IP} "sudo sh -s" - < ${SCRIPT}
+    else
+        ssh -i ${VM_BASE_DIR}/ssh/${VM} -l${VM_USERNAME} ${VM_IP} "sudo bash -s" - < ${SCRIPT}
+    fi
 }
