@@ -1,0 +1,3 @@
+https://blocklistproject.github.io/Lists/dnsmasq-version/ads-dnsmasq.txt@@@${DNSMASQ_DCONF_DIR}/01-ads-dnsmasq.conf
+https://blocklistproject.github.io/Lists/dnsmasq-version/facebook-dnsmasq.txt@@@${DNSMASQ_DCONF_DIR}/02-facebook-dnsmasq.conf
+https://blocklistproject.github.io/Lists/dnsmasq-version/tracking-dnsmasq.txt@@@${DNSMASQ_DCONF_DIR}/03-tracking-dnsmasq.conf

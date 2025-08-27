@@ -1,0 +1,11 @@
+#interface=@@@interface=${INTERFACE}
+#domain-needed@@@domain-needed
+#bogus-priv@@@bogus-priv
+#local=/localnet/@@@local=/local/
+#listen-address=@@@listen-adress=${JAIL_IP_ADDRESS}
+#bind-interfaces@@@bind-interfaces
+#no-hosts@@@no-hosts
+#cache-size=150@@@cache-size=1000
+#conf-dir=/etc/dnsmasq.d/,*.conf@@@conf-dir=/usr/local/etc/dnsmasq.conf.d/,*.conf
+#conf-file=/usr/local/share/dnsmasq/trust-anchors.conf@@@conf-file=/usr/local/share/dnsmasq/trust-anchors.conf
+#dnssec@@@dnssec
