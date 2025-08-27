@@ -60,8 +60,8 @@ case "${ACTION}" in
         # Parse options for create command
         VERBOSE=false
         NAME_SET=false
-
-        while getopts ":hn:b:H:r:c:s:v" opt; do
+        source env_scripts/common.sh
+        while getopts ":hn:b:Hr:c:s:v" opt; do
             case "${opt}" in
                 h)
                     usage
@@ -72,10 +72,10 @@ case "${ACTION}" in
                     ;;
                 b)
                     VM_BRIDGE_INT="${OPTARG}"
-                    VM_NETWORK_TYPE_DEFAULT="bridge"
+                    VM_NETWORK_TYPE="bridge"
                     ;;
                 H)
-                    VM_NETWORK_TYPE_DEFAULT="isolated"
+                    VM_NETWORK_TYPE="isolated"
                     ;;            
                 r)
                     VM_MEM_SIZE="${OPTARG}"
@@ -105,7 +105,7 @@ case "${ACTION}" in
             echo "Error: The -n option is required for create action." >&2
             usage
         fi
-        source env_scripts/common.sh
+        
         detect_distro
         #Check network type
         vm_net_set_network_type

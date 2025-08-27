@@ -63,6 +63,8 @@ VM_NETWORK_HOSTONLY="host-only"
 VM_USERNAME="user"
 ```
 
+You can create a VM with isolated network but an extra interface with NAT network if added, because when guest is initialized, it get updated and some packages are installed (dependend on linux-user-metadata). You can delete NAT interface after VM guest is initialized.
+
 ### AppArmor exception (if needed) 
 
 If AppArmor is blocking libvirtd, disable the profile temporarily: 

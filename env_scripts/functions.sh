@@ -231,7 +231,7 @@ vm_list()
 vm_net_get_mac()
 {
     local VM=$1
-    MAC_VM=$(virsh domiflist "$VM" | awk '{ print $5 }' | tail -2 | head -1)
+    MAC_VM=$(virsh domiflist "${VM}" | grep "${VM_NETWORK_NAT}"| awk '{ print $5 }' | tail -2 | head -1)
     echo $MAC_VM
 }
 ## Get VM ip (only on NAT)
@@ -295,9 +295,7 @@ vm_net_bridge_set_ip()
 
 vm_net_set_network_type()
 {
-    if [[ "${VM_NETWORK_TYPE}" ==  "isolated" ]]; then
-        LIBVIRT_NET_OPTION="network=${VM_NETWORK_HOST_ONLY},model=${LIBVIRT_NET_MODEL}"
-    elif [[ "${VM_NETWORK_TYPE}" ==  "bridge" ]]; then
+    if  [[ "${VM_NETWORK_TYPE}" ==  "bridge" ]]; then
         LIBVIRT_NET_OPTION="model=virtio,bridge=${VM_BRIDGE_INT}"
     fi
 }
@@ -523,6 +521,10 @@ vm_guest_install()
     VM_INSTALL_OPTS="${VM_INSTALL_OPTS} --os-variant=${VM_OS_VARIANT}" 
     VM_INSTALL_OPTS="${VM_INSTALL_OPTS} --disk ${VM_BASE_DIR}/images/${VM_HOSTNAME}.img,device=disk,bus=virtio" 
     VM_INSTALL_OPTS="${VM_INSTALL_OPTS} --network ${LIBVIRT_NET_OPTION}"
+    if [[ "${VM_NETWORK_TYPE}" ==  "isolated" ]]; then
+        LIBVIRT_NET_OPTION="network=${VM_NETWORK_HOSTONLY},model=${LIBVIRT_NET_MODEL}"
+        VM_INSTALL_OPTS="${VM_INSTALL_OPTS} --network ${LIBVIRT_NET_OPTION}"
+    fi
     VM_INSTALL_OPTS="${VM_INSTALL_OPTS} --autostart" 
     VM_INSTALL_OPTS="${VM_INSTALL_OPTS} --import --noautoconsole" 
     VM_INSTALL_OPTS="${VM_INSTALL_OPTS} --cloud-init user-data=${VM_BASE_DIR}/init/${VM_HOSTNAME}-user-data,meta-data=$VM_BASE_DIR/init/${VM_HOSTNAME}-meta-data" 

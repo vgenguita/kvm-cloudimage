@@ -2,12 +2,12 @@
   "os_variants": [
     {
       "id": 1,
-      "name": "Debian 12",
+      "name": "Debian Stable",
       "variant": "debian13",
       "os_type": "GNULinux",
-      "url": "https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-generic-amd64.qcow2",
-      "origin_image_name": "debian-12-generic-amd64.qcow2",
-      "md5sum": "https://cdimage.debian.org/images/cloud/bookworm/latest/SHA512SUMS", 
+      "url": "http://cloud.debian.org/images/cloud/trixie/latest/debian-13-generic-amd64.qcow2",
+      "origin_image_name": "debian-13-generic-amd64.qcow2",
+      "md5sum": "http://cloud.debian.org/images/cloud/trixie/latest/SHA512SUMS", 
       "boot_type": "bios"
     },
     {
