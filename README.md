@@ -44,7 +44,24 @@ For OpenBSD images with cloud-init support, this project uses: [hcartiaux's open
 1. Configure the [variables](env_scripts/common.sh) file (`env_scripts/common.sh`).  
    It is recommended to place this directory in your home folder to avoid libvirt permission issues.
 
-2. Run the installation script: install.sh
+2. Run the installation script: `install.sh`
+
+## Networking
+
+Two networks are installed when you run `install.sh`:
+
+| Name  | Type     |DCHP Range   |Default route   |Host device   |  
+| ----- | -------- |-------------|----------------|--------------|
+| vmnetwork | NAT  |192.168.100.100 - 254| 192.168.100.1| virb1|
+| host-only | Isolated Network  |-|-| -|
+
+**Table 1:** Default Available Networks
+
+You can network names changing on [env_scripts/common.sh](env_scripts/common.sh)  
+```
+VM_NETWORK_HOSTONLY="host-only"
+VM_USERNAME="user"
+```
 
 ### AppArmor exception (if needed) 
 

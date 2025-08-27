@@ -293,10 +293,12 @@ vm_net_bridge_set_ip()
     ssh -i ${VM_BASE_DIR}/ssh/${VM} -l${VM_USERNAME} ${CURRENT_IP} "bash -s" -- < ../vm_example_scripts/apply_netplan.sh
 }
 
-vm_net_set_bridge_mode()
+vm_net_set_network_type()
 {
-    if [[ -n $VM_BRIDGE_INT ]]; then
-            LIBVIRT_NET_OPTION="model=virtio,bridge=${VM_BRIDGE_INT}"
+    if [[ "${VM_NETWORK_TYPE}" ==  "isolated" ]]; then
+        LIBVIRT_NET_OPTION="network=${VM_NETWORK_HOST_ONLY},model=${LIBVIRT_NET_MODEL}"
+    elif [[ "${VM_NETWORK_TYPE}" ==  "bridge" ]]; then
+        LIBVIRT_NET_OPTION="model=virtio,bridge=${VM_BRIDGE_INT}"
     fi
 }
 ## Connect to an existent VM using ssh

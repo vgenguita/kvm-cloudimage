@@ -33,6 +33,7 @@ OPTIONS
   -h         Show this help message
   -n NAME    Host name (required)
   -b BRIDGE  Bridge interface name
+  -H         Host Only Network
   -r RAM     RAM in MB (default: ${VM_MEM_SIZE})
   -c VCPUS   Number of VCPUs (default: ${VM_VCPUS})
   -s DISK    Disk size in GB (default: ${VM_DISK_SIZE})
@@ -60,7 +61,7 @@ case "${ACTION}" in
         VERBOSE=false
         NAME_SET=false
 
-        while getopts ":hn:b:r:c:s:v" opt; do
+        while getopts ":hn:b:H:r:c:s:v" opt; do
             case "${opt}" in
                 h)
                     usage
@@ -70,8 +71,12 @@ case "${ACTION}" in
                     NAME_SET=true
                     ;;
                 b)
-                    BRIDGE_INTERFACE="${OPTARG}"
+                    VM_BRIDGE_INT="${OPTARG}"
+                    VM_NETWORK_TYPE_DEFAULT="bridge"
                     ;;
+                H)
+                    VM_NETWORK_TYPE_DEFAULT="isolated"
+                    ;;            
                 r)
                     VM_MEM_SIZE="${OPTARG}"
                     ;;
@@ -103,7 +108,7 @@ case "${ACTION}" in
         source env_scripts/common.sh
         detect_distro
         #Check network type
-        vm_net_set_bridge_mode
+        vm_net_set_network_type
         #Check host os for guest debian type
         check_host_os
         #Read os_options.json and generate guests menu

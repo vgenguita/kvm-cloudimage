@@ -29,9 +29,16 @@ sudo systemctl enable libvirtd
 sudo systemctl start libvirtd
 
 mkdir -p "${VM_BASE_DIR}"/{images,xml,init,base,ssh}
-cp files/network.xml ${VM_BASE_DIR}/xml/network.xml
-sed -i "s/YOURNETWORK/${VM_NETWORK}/g" ${VM_BASE_DIR}/xml/network.xml
-virsh net-define ${VM_BASE_DIR}/xml/network.xml
-virsh net-autostart ${VM_NETWORK}
-virsh net-start ${VM_NETWORK}
+#Isolated network
+cp files/network-host-only.xml ${VM_BASE_DIR}/xml/network-host-only.xml
+sed -i "s/YOURNETWORK/${VM_NETWORK_NAT}/g" ${VM_BASE_DIR}/xml/network-host-only.xml
+virsh net-define ${VM_BASE_DIR}/xml/network-host-only.xml
+virsh net-autostart ${VM_NETWORK_HOSTONLY}
+virsh net-start ${VM_NETWORK_HOSTONLY}
+#NAT
+cp files/network-nat.xml ${VM_BASE_DIR}/xml/network-nat.xml
+sed -i "s/YOURNETWORK/${VM_NETWORK_NAT}/g" ${VM_BASE_DIR}/xml/network-nat.xml
+virsh net-define ${VM_BASE_DIR}/xml/network-nat.xml
+virsh net-autostart ${VM_NETWORK_NAT}
+virsh net-start ${VM_NETWORK_NAT}
 newgrp libvirt
