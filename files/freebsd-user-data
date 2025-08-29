@@ -32,5 +32,5 @@ write_files:
     append: true
 runcmd:
   - sysrc qemu_guest_agent_enable=YES
-  - sysrc ifconfig_vtnet0="DHCP ifconfig_vnet0="DHCP -tso4 -tso6 -lro -vlanhwtso"
+  - sysrc ifconfig_vtnet0="DHCP"
   - sysrc ifconfig_DEFAULT=""
