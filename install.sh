@@ -31,7 +31,7 @@ sudo systemctl start libvirtd
 mkdir -p "${VM_BASE_DIR}"/{images,xml,init,base,ssh}
 #Isolated network
 cp files/network-host-only.xml ${VM_BASE_DIR}/xml/network-host-only.xml
-sed -i "s/YOURNETWORK/${VM_NETWORK_NAT}/g" ${VM_BASE_DIR}/xml/network-host-only.xml
+sed -i "s/YOURNETWORK/${VM_NETWORK_HOSTONLY}/g" ${VM_BASE_DIR}/xml/network-host-only.xml
 virsh net-define ${VM_BASE_DIR}/xml/network-host-only.xml
 virsh net-autostart ${VM_NETWORK_HOSTONLY}
 virsh net-start ${VM_NETWORK_HOSTONLY}
