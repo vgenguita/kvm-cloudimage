@@ -1,5 +1,5 @@
 <network>
-  <name>YOURNAME</name>
-  <bridge name='YOURNAME' stp='on' delay='0'/>
+  <name>YOURNETWORK</name>
+  <bridge name='YOURNETWORK' stp='on' delay='0'/>
   <!-- <domain name='hostonly.local'/> -->
 </network>
