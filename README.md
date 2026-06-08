@@ -188,10 +188,57 @@ Select software to install:
 Enter your choice [1-4]: 
 ```
 
+# Scripts
+## k3s kubernetes cluster
+# Kubernetes k3s
+## Arquitecture
+```
+                  ┌────────────────────────┐
+                  │  LAN: 192.168.10.0/24  │
+                  └───────────┬────────────┘
+                              │
+                     ┌────────▼────────┐
+                     │  VM: HAProxy    │
+                     │  ┌───────────┐  │
+                     │  │ eth0: LAN │  │ ← 192.168.10.50
+                     │  │ eth1: K8S │  │ ← 10.10.10.1 (gateway)
+                     │  └───────────┘  │
+                     └────────┬────────┘
+                                │
+               ┌────────────────┴────────────────┐
+               │  Red NAT aislada: 10.10.10.0/24 │
+               │  (libvirt virtual network)      │
+               └────────────────┬────────────────┘
+                                │
+         ┌──────────────────────┼─────────────────────┐
+         │                      │                     │
+┌────────▼────────┐    ┌────────▼────────┐   ┌────────▼────────┐
+│ Control Plane   │    │   Worker-1      │   │   Worker-2      │
+│ eth0:10.10.10.11│    │ eth0:10.10.10.12│   │ eth0:10.10.10.13│
+└─────────────────┘    └─────────────────┘   └─────────────────┘
+```
+
 ## TODO
 
   - Maybe add more BSD flavours guests support
   - add non debian linux derivatives guests support
+### When source images changes md5 fails
+The current process is:
+  - Select an operating system
+  - If image for the selected OS is already installed, it is not downloaded again
+  - Compare checksum for expected downloaded file and existent image and fails because source image has changed.
+  
+```shell
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100  7708  100  7708    0     0  25708      0 --:--:-- --:--:-- --:--:-- 25779
+ERROR: MD5 checksum does NOT match!
+Expected: 1882f2d0debfb52254db1b0fc850d222fa68470a644a914d181f744ac1511a6caa1835368362db6dee88504a13c726b3ee9de0e43648353f62e90e075f497026
+Got:      8f5c54d654b53951430b404efc3043b425cf2214467d5bf33d6c5157fa47c8fe4a1a2abf603050dafc7e54f57e9685f0d59a6c0d09d0cb2b7fcec75561c0df6f
+ ✘  ~/dev/git/kvm-cloudimage   develop ±   cd /home/victor/dev/git
+
+```
+
 <!-- ./vm_create.sh: línea 52: mkpasswd: orden no encontrada
 ./vm_create.sh: línea 259: virt-install: orden no encontrada
 ./vm_create.sh: línea 261: virsh: orden no encontrada

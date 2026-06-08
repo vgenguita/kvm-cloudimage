@@ -86,6 +86,8 @@
       "name": "FreeBSD 14.3 UFS",
       "os_type": "BSD",
       "variant": "freebsd14.2",
+      "os_release": "14.3",
+      "base_filename": "FreeBSD-14.3-STABLE-amd64-BASIC-CLOUDINIT-ufs.qcow2.xz",
       "url": "https://download.freebsd.org/ftp/snapshots/VM-IMAGES/14.3-STABLE/amd64/Latest/FreeBSD-14.3-STABLE-amd64-BASIC-CLOUDINIT-ufs.qcow2.xz",
       "origin_image_name": "FreeBSD-14.3-STABLE-amd64-BASIC-CLOUDINIT-ufs.qcow2.xz",
       "md5sum": "https://download.freebsd.org/ftp/snapshots/VM-IMAGES/14.3-STABLE/amd64/Latest/CHECKSUM.SHA512"
@@ -95,6 +97,8 @@
       "name": "FreeBSD 14.3 ZFS",
       "os_type": "BSD",
       "variant": "freebsd14.2",
+      "os_release": "14.3",
+      "base_filename": "FreeBSD-14.3-STABLE-amd64-BASIC-CLOUDINIT-zfs.qcow2.xz",
       "url": "https://download.freebsd.org/ftp/snapshots/VM-IMAGES/14.3-STABLE/amd64/Latest/FreeBSD-14.3-STABLE-amd64-BASIC-CLOUDINIT-zfs.qcow2.xz",
       "origin_image_name": "FreeBSD-14.3-STABLE-amd64-BASIC-CLOUDINIT-zfs.qcow2.xz",
       "md5sum": "https://download.freebsd.org/ftp/snapshots/VM-IMAGES/14.3-STABLE/amd64/Latest/CHECKSUM.SHA512"
@@ -107,6 +111,35 @@
       "url": "",
       "origin_image_name": "openbsd-generic.qcow2",
       "md5sum": ""
+    } ,
+    {
+      "id": 12,
+      "name": "FreeBSD 15.0 UFS",
+      "os_type": "BSD",
+      "variant": "freebsd14.2",
+      "os_release": "15.0",
+      "url": "https://download.freebsd.org/ftp/snapshots/VM-IMAGES/15.0-STABLE/amd64/Latest/FreeBSD-15.0-STABLE-amd64-BASIC-CLOUDINIT-ufs.qcow2.xz",
+      "origin_image_name": "FreeBSD-15.0-STABLE-amd64-BASIC-CLOUDINIT-ufs.qcow2.xz",
+      "md5sum": "https://download.freebsd.org/ftp/snapshots/VM-IMAGES/15.0-STABLE/amd64/Latest/CHECKSUM.SHA512"
+    } ,
+    {
+      "id": 13,
+      "name": "FreeBSD 15.3 ZFS",
+      "os_type": "BSD",
+      "variant": "freebsd14.2",
+      "os_release": "15.0",
+      "url": "https://download.freebsd.org/ftp/snapshots/VM-IMAGES/15.0-STABLE/amd64/Latest/FreeBSD-15.0-STABLE-amd64-BASIC-CLOUDINIT-zfs.qcow2.xz",
+      "origin_image_name": "FreeBSD-15.0-STABLE-amd64-BASIC-CLOUDINIT-zfs.qcow2.xz",
+      "md5sum": "https://download.freebsd.org/ftp/snapshots/VM-IMAGES/15.0-STABLE/amd64/Latest/CHECKSUM.SHA512"
+    } ,
+    {
+      "id": 14,
+      "name": "CoreOS Stable",
+      "os_type": "GNULinux",
+      "variant": "fedora-coreos-stable",
+      "url": "https://builds.coreos.fedoraproject.org/prod/streams/stable/builds/42.20250914.3.0/x86_64/fedora-coreos-42.20250914.3.0-qemu.x86_64.qcow2.xz",
+      "origin_image_name": "coreos-stable.qcow2",
+      "md5sum": "files/coreos-checksum"
     } 
   ]
 }

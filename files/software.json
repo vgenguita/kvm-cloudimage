@@ -19,6 +19,11 @@
       "id": 4,
       "show_name": "Gitlab Runner",
       "name": "gitlab_runner"
+    },
+    {
+      "id": 5,
+      "show_name": "k3s Kubernetes",
+      "name": "kubernetes_k3s"
     }
   ]
 }

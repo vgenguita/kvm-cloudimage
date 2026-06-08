@@ -21,7 +21,7 @@ print_error() {
 }
 
 # Detectar distribución
-detect_distro() 
+detect_distro()
 {
     if [ -f /etc/os-release ]; then
         . /etc/os-release
@@ -44,7 +44,8 @@ install_debian_ubuntu() {
     sudo apt update || { print_error "Error updating packages."; exit 1; }
 
     print_info "Installing libvirt"
-    sudo apt install -y qemu-kvm libvirt-daemon-system libvirt-clients bridge-utils|| {
+    #net-tools package needed for arp
+    sudo apt install -y qemu-kvm libvirt-daemon-system libvirt-clients bridge-utils net-tools|| {
         print_error "Error installing packages."
         exit 1
     }
@@ -59,7 +60,8 @@ install_arch() {
     sudo pacman -Syu --noconfirm || { print_error "Error updating packages."; exit 1; }
 
     print_info "Installing libvirt."
-    sudo pacman -S --noconfirm qemu libvirt virt-manager dnsmasq iptables bridge-utils|| {
+    #sudo pacman -S --noconfirm qemu libvirt virt-manager dnsmasq iptables bridge-utils|| {
+    sudo pacman -S --noconfirm qemu libvirt virt-manager dnsmasq|| {
         print_error "Error installing packages."
         exit 1
     }
@@ -80,9 +82,9 @@ install_fedora() {
 check_host_os()
 {
     local HOST_OS=$(cat /etc/os-release | grep -v VERSION_ID |grep "ID=" | awk -F'=' '{print $2}')
-    if [ $HOST_OS == "debian" ]; then
+    if [[ $HOST_OS == "debian" ]]; then
     source env_scripts/older_os.sh
-    else 
+    else
     source env_scripts/newer_os.sh
     fi
 }
@@ -163,6 +165,9 @@ show_vm_menu() {
 
     # Export variables in uppercase
     VM_OS_VARIANT=$(echo "$SELECTED" | jq -r '.variant')
+    if [[ "${VM_OS_VARIANT}" == "freebsd14.2" ]]; then
+        VM_BASE_VERSION=$(echo "$SELECTED" | jq -r '.os_release')
+    fi
     VM_OS_TYPE=$(echo "$SELECTED" | jq -r '.os_type')
     VM_BASE_IMAGE_URL=$(echo "$SELECTED" | jq -r '.url')
     VM_BASE_IMAGE=$(echo "$SELECTED" | jq -r '.origin_image_name')
@@ -174,42 +179,46 @@ show_vm_menu() {
 }
 compare_checksum()
 {
-    CHECKSUM_TMP_FOLDER=$(mktemp)
-    curl -L -o "${CHECKSUM_TMP_FOLDER}" \
-    "${VM_CHECKSUMS_URL}"
-    # wget --recursive \
-    # --user-agent="Mozilla/5.0 (X11; Linux x86_64)" \
-    # -O "${CHECKSUM_TMP_FOLDER}" \
-    # "${VM_CHECKSUMS_URL}"
-
-    if [[ "$VM_OS_TYPE" == "BSD" &&  "${VM_OS_VARIANT}" == *"freebsd"* ]]; then
-        if [[ "${VM_BASE_IMAGE}" == *"zfs"* ]]; then
-            VM_BASE_IMAGE_CHECKSUM=$(grep "FreeBSD-14.3-STABLE-amd64-BASIC-CLOUDINIT" "${CHECKSUM_TMP_FOLDER}" | grep "zfs.qcow2.xz" | awk '{print $4}') 
-        else
-            VM_BASE_IMAGE_CHECKSUM=$(grep "FreeBSD-14.3-STABLE-amd64-BASIC-CLOUDINIT" "${CHECKSUM_TMP_FOLDER}" | grep "ufs.qcow2.xz" | awk '{print $4}') 
-        fi
+    if [[ "$VM_OS_TYPE" == "GNULinux" &&  "${VM_OS_VARIANT}" == *"fedora-coreos-stable"* ]]; then
+        VM_BASE_IMAGE_CHECKSUM=echo $($(cat files/coreos-checkum))
     else
-        #Fedora things
-        if [[ "${VM_OS_VARIANT}" == "fedora41" ]]; then
-            VM_BASE_IMAGE_CHECKSUM=$(grep "${VM_BASE_IMAGE_NAME}.${VM_BASE_IMAGE_EXTENSION}" "${CHECKSUM_TMP_FOLDER}" | grep -v \# | awk '{print $4}')
-        else
-            VM_BASE_IMAGE_CHECKSUM=$(grep "${VM_BASE_IMAGE_NAME}.${VM_BASE_IMAGE_EXTENSION}" "${CHECKSUM_TMP_FOLDER}" | awk '{print $1}')
-        fi
-    fi
+        CHECKSUM_TMP_FOLDER=$(mktemp)
+        curl -L -o "${CHECKSUM_TMP_FOLDER}" \
+        "${VM_CHECKSUMS_URL}"
+        # wget --recursive \
+        # --user-agent="Mozilla/5.0 (X11; Linux x86_64)" \
+        # -O "${CHECKSUM_TMP_FOLDER}" \
+        # "${VM_CHECKSUMS_URL}"
 
-    if [[ "${VM_CHECKSUMS_URL}" == *"SHA256"* || "${VM_CHECKSUMS_URL}" == *"sha256"* ]]; then
-        HASH_CMD="sha256sum"
-    elif [[ "${VM_CHECKSUMS_URL}" == *"SHA512"* ]]; then
-        HASH_CMD="sha512sum"
-    #Fedora things
-    else
-	    if grep -qi "SHA256" "${CHECKSUM_TMP_FOLDER}"; then
+        if [[ "$VM_OS_TYPE" == "BSD" &&  "${VM_OS_VARIANT}" == *"freebsd"* ]]; then
+            if [[ "${VM_BASE_IMAGE}" == *"zfs"* ]]; then
+                VM_BASE_IMAGE_CHECKSUM=$(grep "FreeBSD-${VM_BASE_VERSION}-STABLE-amd64-BASIC-CLOUDINIT" "${CHECKSUM_TMP_FOLDER}" | grep "zfs.qcow2.xz" | awk '{print $4}')
+            else
+                VM_BASE_IMAGE_CHECKSUM=$(grep "FreeBSD-${VM_BASE_VERSION}-STABLE-amd64-BASIC-CLOUDINIT" "${CHECKSUM_TMP_FOLDER}" | grep "ufs.qcow2.xz" | awk '{print $4}')
+            fi
+        else
+            #Fedora things
+            if [[ "${VM_OS_VARIANT}" == "fedora41" ]]; then
+                VM_BASE_IMAGE_CHECKSUM=$(grep "${VM_BASE_IMAGE_NAME}.${VM_BASE_IMAGE_EXTENSION}" "${CHECKSUM_TMP_FOLDER}" | grep -v \# | awk '{print $4}')
+            else
+                VM_BASE_IMAGE_CHECKSUM=$(grep "${VM_BASE_IMAGE_NAME}.${VM_BASE_IMAGE_EXTENSION}" "${CHECKSUM_TMP_FOLDER}" | awk '{print $1}')
+            fi
+        fi
+
+        if [[ "${VM_CHECKSUMS_URL}" == *"SHA256"* || "${VM_CHECKSUMS_URL}" == *"sha256"* ]]; then
             HASH_CMD="sha256sum"
-        elif grep -qi "SHA512" "${CHECKSUM_TMP_FOLDER}"; then
+        elif [[ "${VM_CHECKSUMS_URL}" == *"SHA512"* ]]; then
             HASH_CMD="sha512sum"
+        #Fedora things
         else
-            echo "ERROR: Cannot determinate checksum type on ${CHECKSUM_TMP_FOLDER}"
-            exit 1
+            if grep -qi "SHA256" "${CHECKSUM_TMP_FOLDER}"; then
+                HASH_CMD="sha256sum"
+            elif grep -qi "SHA512" "${CHECKSUM_TMP_FOLDER}"; then
+                HASH_CMD="sha512sum"
+            else
+                echo "ERROR: Cannot determinate checksum type on ${CHECKSUM_TMP_FOLDER}"
+                exit 1
+            fi
         fi
     fi
     BASE_FILE_CHECKSUM=$(${HASH_CMD} ${VM_BASE_IMAGE_LOCATION} | awk '{print $1}')
@@ -337,9 +346,9 @@ vm_download_base_image()
 {
     if [[ "$VM_OS_TYPE" == "BSD" &&  "${VM_OS_VARIANT}" == *"freebsd"* ]]; then
         if [[ "${VM_BASE_IMAGE}" == *"zfs"* ]]; then
-            VM_BASE_IMAGE_NAME="${VM_OS_VARIANT}-zfs"
+            VM_BASE_IMAGE_NAME="FreeBSD-${VM_BASE_VERSION}-zfs"
         else
-            VM_BASE_IMAGE_NAME="${VM_OS_VARIANT}-ufs"
+            VM_BASE_IMAGE_NAME="FreeBSD-${VM_BASE_VERSION}-ufs"
         fi
         VM_BASE_IMAGE_EXTENSION="qcow2.xz"
     else
@@ -355,7 +364,7 @@ vm_download_base_image()
 
         curl -L ${VM_BASE_IMAGE_URL} \
             -o ${VM_BASE_IMAGE_LOCATION} \
-        
+
     fi
 }
 
@@ -515,19 +524,19 @@ vm_set_guest_type()
 vm_guest_install()
 {
     VM_INSTALL_OPTS=""
-    VM_INSTALL_OPTS="${VM_INSTALL_OPTS} --name ${VM_HOSTNAME}" 
-    VM_INSTALL_OPTS="${VM_INSTALL_OPTS} --memory ${VM_MEM_SIZE}" 
-    VM_INSTALL_OPTS="${VM_INSTALL_OPTS} --vcpus ${VM_VCPUS}" 
-    VM_INSTALL_OPTS="${VM_INSTALL_OPTS} --os-variant=${VM_OS_VARIANT}" 
-    VM_INSTALL_OPTS="${VM_INSTALL_OPTS} --disk ${VM_BASE_DIR}/images/${VM_HOSTNAME}.img,device=disk,bus=virtio" 
+    VM_INSTALL_OPTS="${VM_INSTALL_OPTS} --name ${VM_HOSTNAME}"
+    VM_INSTALL_OPTS="${VM_INSTALL_OPTS} --memory ${VM_MEM_SIZE}"
+    VM_INSTALL_OPTS="${VM_INSTALL_OPTS} --vcpus ${VM_VCPUS}"
+    VM_INSTALL_OPTS="${VM_INSTALL_OPTS} --os-variant=${VM_OS_VARIANT}"
+    VM_INSTALL_OPTS="${VM_INSTALL_OPTS} --disk ${VM_BASE_DIR}/images/${VM_HOSTNAME}.img,device=disk,bus=virtio"
     VM_INSTALL_OPTS="${VM_INSTALL_OPTS} --network ${LIBVIRT_NET_OPTION}"
     if [[ "${VM_NETWORK_TYPE}" ==  "isolated" ]]; then
         LIBVIRT_NET_OPTION="network=${VM_NETWORK_HOSTONLY},model=${LIBVIRT_NET_MODEL}"
         VM_INSTALL_OPTS="${VM_INSTALL_OPTS} --network ${LIBVIRT_NET_OPTION}"
     fi
-    VM_INSTALL_OPTS="${VM_INSTALL_OPTS} --autostart" 
-    VM_INSTALL_OPTS="${VM_INSTALL_OPTS} --import --noautoconsole" 
-    VM_INSTALL_OPTS="${VM_INSTALL_OPTS} --cloud-init user-data=${VM_BASE_DIR}/init/${VM_HOSTNAME}-user-data,meta-data=$VM_BASE_DIR/init/${VM_HOSTNAME}-meta-data" 
+    VM_INSTALL_OPTS="${VM_INSTALL_OPTS} --autostart"
+    VM_INSTALL_OPTS="${VM_INSTALL_OPTS} --import --noautoconsole"
+    VM_INSTALL_OPTS="${VM_INSTALL_OPTS} --cloud-init user-data=${VM_BASE_DIR}/init/${VM_HOSTNAME}-user-data,meta-data=$VM_BASE_DIR/init/${VM_HOSTNAME}-meta-data"
     VM_INSTALL_OPTS="${VM_INSTALL_OPTS} --channel unix,mode=bind,target_type=virtio,name=org.qemu.guest_agent.0"
     if [ "$VM_BOOT_TYPE" = "UEFI" ]; then
         VM_INSTALL_OPTS="${VM_INSTALL_OPTS} --boot uefi"
@@ -553,7 +562,7 @@ vm_get_guest_info()
   #echo $OS_ID
   # Convertir la URL a un nombre de distribución y versión
   VM_DISTRO=$(echo "$OS_ID" | awk -F '/' '{print $3}')
-  VM_VERSION=$(echo "$OS_ID" | awk -F '/' '{print $4}')    
+  VM_VERSION=$(echo "$OS_ID" | awk -F '/' '{print $4}')
 }
 
 show_software_menu() {
@@ -599,7 +608,7 @@ show_software_menu() {
 
     # Export variables in uppercase
     VM_SOFT=$(echo "$SELECTED" | jq -r '.name')
-    
+
 }
 
 vm_install_utils()
@@ -611,54 +620,54 @@ vm_install_utils()
     local VM_IP=$(vm_net_get_ip "$VM")
     vm_get_guest_info ${VM_BASE_DIR}/xml/${VM}.xml
     case ${VM_SOFT} in
-        docker)  
-            if [[ "$VM_DISTRO" == "debian" ]]; then 
+        docker)
+            if [[ "$VM_DISTRO" == "debian" ]]; then
                 SCRIPT='vm_example_scripts/docker_debian.sh'
-            elif [[ "$VM_DISTRO" == "ubuntu" ]]; then  
+            elif [[ "$VM_DISTRO" == "ubuntu" ]]; then
                 SCRIPT='vm_example_scripts/docker_ubuntu.sh'
-            elif [[ "$VM_DISTRO" == "fedora" ]]; then 
+            elif [[ "$VM_DISTRO" == "fedora" ]]; then
                 SCRIPT='vm_example_scripts/docker_fedora.sh'
-            elif [[ "$VM_DISTRO" == "freebsd" ]]; then 
+            elif [[ "$VM_DISTRO" == "freebsd" ]]; then
                 echo "Automated installation for Docker on ${VM_DISTRO} is not available."
                 echo "It's better to use Pidman instead"
                 exit 1
             fi
             ;;
         podman)
-            if [[ "$VM_DISTRO" == "debian" || "$VM_DISTRO" == "ubuntu" ]]; then 
+            if [[ "$VM_DISTRO" == "debian" || "$VM_DISTRO" == "ubuntu" ]]; then
                 SCRIPT='vm_example_scripts/podman_deb.sh'
-            elif [[ "$VM_DISTRO" == "fedora" ]]; then 
+            elif [[ "$VM_DISTRO" == "fedora" ]]; then
                 SCRIPT='vm_example_scripts/podman_fedora.sh'
-            elif [[ "$VM_DISTRO" == "freebsd" ]]; then 
+            elif [[ "$VM_DISTRO" == "freebsd" ]]; then
                 SCRIPT='vm_example_scripts/podman_freebsd.sh'
             fi
             ;;
         gitlab_ce)
-            if [[ "$VM_DISTRO" == "debian" || "$VM_DISTRO" == "ubuntu" ]]; then 
+            if [[ "$VM_DISTRO" == "debian" || "$VM_DISTRO" == "ubuntu" ]]; then
                 SCRIPT='vm_example_scripts/gitlab_ce_deb.sh'
-            elif [[ "$VM_DISTRO" == "fedora"  || "$VM_DISTRO" == "freebsd" ]]; then 
+            elif [[ "$VM_DISTRO" == "fedora"  || "$VM_DISTRO" == "freebsd" ]]; then
                 #SCRIPT='vm_example_scripts/gitlab_ce_fedora.sh'
                 echo "Automated installation for Gitlab CE on ${VM_DISTRO} is not available by the moment."
                 exit 1
             fi
             ;;
         gitlab_runner)
-            if [[ "$VM_DISTRO" == "debian" || "$VM_DISTRO" == "ubuntu" ]]; then 
+            if [[ "$VM_DISTRO" == "debian" || "$VM_DISTRO" == "ubuntu" ]]; then
                 SCRIPT='vm_example_scripts/gitlab_runner_deb.sh'
-            elif [[ "$VM_DISTRO" == "fedora" ]]; then 
+            elif [[ "$VM_DISTRO" == "fedora" ]]; then
                 SCRIPT='vm_example_scripts/gitlab_runner_fedora.sh'
-            elif [[ "$VM_DISTRO" == "freebsd" ]]; then 
+            elif [[ "$VM_DISTRO" == "freebsd" ]]; then
                 SCRIPT='vm_example_scripts/gitlab_runner_freebsd.sh'
             fi
             ;;
         *)
             echo "Unknown action: ${ACTION}" >&2
             usage
-            ;;      
+            ;;
     esac
     #Exec script
     #bash ${SCRIPT}
-    if [[ "$VM_DISTRO" == "freebsd" ]]; then 
+    if [[ "$VM_DISTRO" == "freebsd" ]]; then
         ssh -i ${VM_BASE_DIR}/ssh/${VM} -l${VM_USERNAME} ${VM_IP} "sudo sh -s" - < ${SCRIPT}
     else
         ssh -i ${VM_BASE_DIR}/ssh/${VM} -l${VM_USERNAME} ${VM_IP} "sudo bash -s" - < ${SCRIPT}

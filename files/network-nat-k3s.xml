@@ -1,0 +1,7 @@
+<network>
+  <name>k3s-internal</name>
+  <forward mode='nat'/>
+  <bridge name='virbr-k3s' stp='on' delay='0'/>
+  <ip address='10.10.10.1' netmask='255.255.255.0'>
+  </ip>
+</network>

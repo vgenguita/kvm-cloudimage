@@ -11,7 +11,7 @@ case $DISTRO in
     ubuntu|debian)
         install_debian_ubuntu
         ;;
-    arch)
+    arch | archcraft)
         install_arch
         ;;
     fedora)
