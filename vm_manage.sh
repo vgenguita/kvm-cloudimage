@@ -2,6 +2,16 @@
 
 source env_scripts/common.sh
 source env_scripts/functions.sh
+
+#Check if install.sh has been executed properly
+if [ ! -f "${VM_CONFIG_DIR}/setup" ] || ! grep -Fxq 'INSTALLED="Y"' "${VM_CONFIG_DIR}/setup"; then
+    echo "Setup is not completed or missing. Skipping execution."
+    exit 1
+else
+    . "${VM_CONFIG_DIR}/setup"
+fi
+
+
 # Default values for VM creation parameters
 VM_MEM_SIZE=1024
 VM_VCPUS=1
@@ -60,7 +70,6 @@ case "${ACTION}" in
         # Parse options for create command
         VERBOSE=false
         NAME_SET=false
-        source env_scripts/common.sh
         while getopts ":hn:b:Hr:c:s:v" opt; do
             case "${opt}" in
                 h)
@@ -105,28 +114,30 @@ case "${ACTION}" in
             echo "Error: The -n option is required for create action." >&2
             usage
         fi
-        
-        detect_distro
         #Check network type
         vm_net_set_network_type
         #Check host os for guest debian type
         check_host_os
         #Read os_options.json and generate guests menu
         #Select guest
-        show_vm_menu
-        #Set guest type based on check_host_os
-        vm_set_guest_type
-        #set image permissions 
-        chown_image_permissions
+        vm_set_guest
         if [[ "$VM_OS_TYPE" == "BSD" && "${VM_OS_VARIANT}" == *"openbsd"* ]]; then
             generate_openbsd_image
         else
             #Download cloud image
             vm_download_base_image
             #Compare hashes
-            compare_checksum
-            #Create guest image
-            vm_create_guest_image
+            #compare_checksum
+            vm_image_checksum
+            if [ "${CHECKSUM_OK}" = "Y" ];
+                #Create guest image
+                vm_create_guest_image
+            else
+                echo "ERROR: MD5 checksum does NOT match!"
+        	    echo "Expected: ${VM_BASE_IMAGE_CHECKSUM}"
+        	    echo "Got:      ${BASE_FILE_CHECKSUM}"
+        	    exit 1
+            fi
         fi
         #Generate ssh key
         vm_generate_ssh_hey

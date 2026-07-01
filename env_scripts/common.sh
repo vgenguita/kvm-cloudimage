@@ -4,6 +4,7 @@ DISTRO=""
 #VM_BASE_DIR=${VM_BASE_DIR:-"${HOME}/.local/share/libvirt"}
 #VM_BASE_DIR=${VM_BASE_DIR:-"${HOME}/var/lib/libvirt"}
 VM_BASE_DIR="${HOME}/vms"
+VM_CONFIG_DIR="${HOME}/.config/kvm-cloudimage"
 VM_BASE_IMAGES="base"
 VM_DISK_EXTENSION="img"
 VM_NETWORK_NAT="vmnetwork"

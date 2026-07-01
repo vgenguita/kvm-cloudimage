@@ -238,6 +238,37 @@ Got:      8f5c54d654b53951430b404efc3043b425cf2214467d5bf33d6c5157fa47c8fe4a1a2a
  ✘  ~/dev/git/kvm-cloudimage   develop ±   cd /home/victor/dev/git
 
 ```
+# Fedora
+```shell
+curl -O https://fedoraproject.org/fedora.pgp
+
+curl -O https://fedoraproject.org/fedora.gpg
+
+curl -Ohttps://download.fedoraproject.org/pub/fedora/linux/releases/44/Cloud/x86_64/images/Fedora-Cloud-44-1.7-x86_64-CHECKSUM
+
+sq verify --cleartext --signer-file ./fedora.pgp \
+                  Fedora-Cloud-44-1.7-x86_64-CHECKSUM \
+                  | sha256sum -c --ignore-missing
+gpgv --keyring ./fedora.gpg --output - \
+                  Fedora-Cloud-44-1.7-x86_64-CHECKSUM \
+                  | sha256sum -c --ignore-missing
+
+#      Alternatively, if you just want to test for unintentional file corruption, you can skip the OpenPGP verification. The SHA256 checksum for this download should be:
+
+28680fe5b371a5a82ebf43a31926e086a168e59949d03969c5093e7071f90b7f                 
+```
+
+# Debian
+```shell
+install debian-keyring
+/usr/share/keyrings/debian-role-keys.pgp
+
+
+curl -O https://cloud.debian.org/images/cloud/trixie/latest/SHA512SUMS
+gpgv --keyring .//usr/share/keyrings/debian-role-keys.pgp --output - \
+                  Fedora-Cloud-44-1.7-x86_64-CHECKSUM \
+                  | sha256sum -c --ignore-missing
+```
 
 <!-- ./vm_create.sh: línea 52: mkpasswd: orden no encontrada
 ./vm_create.sh: línea 259: virt-install: orden no encontrada

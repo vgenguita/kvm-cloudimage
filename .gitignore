@@ -2,3 +2,4 @@
 *.qcow2
 ./openbsd-cloud-image
 coreos-checksum
+./tmp

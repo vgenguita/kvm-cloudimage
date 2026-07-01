@@ -3,10 +3,14 @@
 #VM_NETWORK=
 #VM_BASE_DIR=
 #Install dependencies
+# Check if the setup file exists and already contains INSTALLED = "Y"
 source env_scripts/common.sh
 source env_scripts/functions.sh
+if [ -f "${VM_CONFIG_DIR}/setup" ] && grep -Fxq 'INSTALLED="Y"' "${VM_CONFIG_DIR}/setup"; then
+    echo "Setup already completed. Skipping execution."
+    exit 1
+fi
 detect_distro
-
 case $DISTRO in
     ubuntu|debian)
         install_debian_ubuntu
@@ -23,12 +27,23 @@ case $DISTRO in
         exit 1
             ;;
     esac
-sudo usermod -aG libvirt $(whoami)
-sudo usermod -aG kvm $(whoami)
+
+## Permissions and groups
+LIBVIRT_GROUP=$(grep qemu /etc/group | awk -F ':' '{print $1}')
+
+sudo chmod 750 "${HOME}"
+sudo usermod -aG libvirt "${USER}"
+sudo usermod -aG kvm "${USER}"
+sudo usermod -aG "${LIBVIRT_GROUP}" "${USER}"
 sudo systemctl enable libvirtd
 sudo systemctl start libvirtd
 
+## Folder structure
 mkdir -p "${VM_BASE_DIR}"/{images,xml,init,base,ssh}
+mkdir -p "${VM_CONFIG_DIR}"
+touch "${VM_CONFIG_DIR}/setup"
+echo 'INSTALLED="Y"' >> "${VM_CONFIG_DIR}/setup"
+echo "LIBVIRT_GROUP=\"${LIBVIRT_GROUP}\""  >> "${VM_CONFIG_DIR}/setup"
 #Isolated network
 cp files/network-host-only.xml ${VM_BASE_DIR}/xml/network-host-only.xml
 sed -i "s/YOURNETWORK/${VM_NETWORK_HOSTONLY}/g" ${VM_BASE_DIR}/xml/network-host-only.xml
@@ -41,4 +56,4 @@ sed -i "s/YOURNETWORK/${VM_NETWORK_NAT}/g" ${VM_BASE_DIR}/xml/network-nat.xml
 virsh net-define ${VM_BASE_DIR}/xml/network-nat.xml
 virsh net-autostart ${VM_NETWORK_NAT}
 virsh net-start ${VM_NETWORK_NAT}
-newgrp libvirt
+echo "Setup completed. Logout and login your session again now."

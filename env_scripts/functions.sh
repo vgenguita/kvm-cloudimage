@@ -1,6 +1,6 @@
 #!/usr/bin/env -S bash
 
-# Functions
+# Common functions
 pause()
 {
  read -s -n 1 -p "Press any key to continue . . ."
@@ -38,6 +38,25 @@ detect_distro()
     fi
 }
 
+check_host_os()
+{
+    local HOST_OS=$(cat /etc/os-release | grep -v VERSION_ID |grep "ID=" | awk -F'=' '{print $2}')
+    if [[ $HOST_OS == "debian" ]]; then
+    source env_scripts/older_os.sh
+    else
+    source env_scripts/newer_os.sh
+    fi
+}
+
+# chown_image_permissions(){
+#     if [[ "${DISTRO}" == "fedora" ]]; then
+#         USER_GROUP="$USER:qemu"
+#     else
+#         USER_GROUP="$USER:libvirt-qemu"
+#     fi
+# }
+
+## install.sh functions
 
 install_debian_ubuntu() {
     print_info "Updating packages..."
@@ -78,24 +97,8 @@ install_fedora() {
     }
 }
 
+## vm_manage.sh functions
 
-check_host_os()
-{
-    local HOST_OS=$(cat /etc/os-release | grep -v VERSION_ID |grep "ID=" | awk -F'=' '{print $2}')
-    if [[ $HOST_OS == "debian" ]]; then
-    source env_scripts/older_os.sh
-    else
-    source env_scripts/newer_os.sh
-    fi
-}
-
-chown_image_permissions(){
-    if [[ "${DISTRO}" == "fedora" ]]; then
-        USER_GROUP="$USER:qemu"
-    else
-        USER_GROUP="$USER:libvirt-qemu"
-    fi
-}
 
 generate_openbsd_image()
 {
@@ -111,18 +114,18 @@ generate_openbsd_image()
         -b
     if ! test -f "${VM_BASE_DIR}/images/${VM_HOSTNAME}.${VM_DISK_EXTENSION}"; then
         mv images/${VM_BASE_IMAGE_NAME}.${VM_BASE_IMAGE_EXTENSION} ${VM_BASE_DIR}/images/${VM_HOSTNAME}.${VM_DISK_EXTENSION}
-        sudo chown -R ${USER_GROUP} ${VM_BASE_DIR}/images/${VM_HOSTNAME}.${VM_DISK_EXTENSION}
+        sudo chown -R ${USER}:${LIBVIRT_GROUP} ${VM_BASE_DIR}/images/${VM_HOSTNAME}.${VM_DISK_EXTENSION}
         cd ${CURRENT_PATH}
         rm -r openbsd-cloud-image
     else
         echo "${VM_BASE_DIR}/images/${VM_HOSTNAME}.${VM_DISK_EXTENSION} already exists. Delete VM with "delete" option"
-         cd ${CURRENT_PATH}
+        cd ${CURRENT_PATH}
         rm -r openbsd-cloud-image
         exit 1
     fi
 }
 
-show_vm_menu() {
+vm_set_guest() {
     # Display dynamic OS selection menu
     echo "Select VM OS:"
     echo "--------------"
@@ -173,11 +176,23 @@ show_vm_menu() {
     VM_BASE_IMAGE=$(echo "$SELECTED" | jq -r '.origin_image_name')
     VM_BOOT_TYPE=$(echo "$SELECTED" | jq -r '.boot_type')
     VM_CHECKSUMS_URL=$(echo "$SELECTED" | jq -r '.md5sum')
-
+    # Set guest type
+    if [[ "$VM_OS_TYPE" == "BSD" ]]; then
+        if [[ "${VM_OS_VARIANT}" == *"freebsd"* ]]; then
+            VM_OS_VARIANT=${GUEST_OS_TYPE_FREEBSD}
+        fi
+        if [[ "${VM_OS_VARIANT}" == *"openbsd"* ]]; then
+            VM_OS_VARIANT=${GUEST_OS_TYPE_OPENBSD}
+        fi
+    elif  [[ "${VM_OS_VARIANT}" == *"debian13"* ]]; then
+        VM_OS_VARIANT=${GUEST_OS_TYPE_DEBIAN}
+    fi
     # Optional: Debug
     # echo "Selected OS variant: ${VM_OS_VARIANT}"
 }
-compare_checksum()
+
+
+vm_image_checksum()
 {
     if [[ "$VM_OS_TYPE" == "GNULinux" &&  "${VM_OS_VARIANT}" == *"fedora-coreos-stable"* ]]; then
         VM_BASE_IMAGE_CHECKSUM=echo $($(cat files/coreos-checkum))
@@ -223,13 +238,16 @@ compare_checksum()
     fi
     BASE_FILE_CHECKSUM=$(${HASH_CMD} ${VM_BASE_IMAGE_LOCATION} | awk '{print $1}')
 	if [ "${BASE_FILE_CHECKSUM}" = "${VM_BASE_IMAGE_CHECKSUM}" ]; then
-       		echo "Checksum OK: ${BASE_FILE_CHECKSUM}"
+       		#echo "Checksum OK: ${BASE_FILE_CHECKSUM}"
+            CHECKSUM_OK="Y"
     	else
-        	echo "ERROR: MD5 checksum does NOT match!"
-        	echo "Expected: ${VM_BASE_IMAGE_CHECKSUM}"
-        	echo "Got:      ${BASE_FILE_CHECKSUM}"
-        	exit 1
+            CHECKSUM_OK="N"
+        	#echo "ERROR: MD5 checksum does NOT match!"
+        	#echo "Expected: ${VM_BASE_IMAGE_CHECKSUM}"
+        	#echo "Got:      ${BASE_FILE_CHECKSUM}"
+        	#exit 1
     fi
+
 }
 ## List Installed VMS
 vm_list()
@@ -342,6 +360,7 @@ vm_delete ()
     echo "Cannot find VM image file '$VM_IMAGE_PATH'. No action taken."
     fi
 }
+
 vm_download_base_image()
 {
     if [[ "$VM_OS_TYPE" == "BSD" &&  "${VM_OS_VARIANT}" == *"freebsd"* ]]; then
@@ -357,14 +376,17 @@ vm_download_base_image()
     fi
     VM_BASE_IMAGE_LOCATION="${VM_BASE_DIR}/${VM_BASE_IMAGES}/${VM_BASE_IMAGE_NAME}.${VM_BASE_IMAGE_EXTENSION}"
     if ! test -f "${VM_BASE_IMAGE_LOCATION}"; then
-    #    wget \
-    #     --user-agent="Mozilla/5.0 (X11; Linux x86_64)" \
-    #     -O "${VM_BASE_IMAGE_LOCATION}" \
-    #     ${VM_BASE_IMAGE_URL}
-
         curl -L ${VM_BASE_IMAGE_URL} \
-            -o ${VM_BASE_IMAGE_LOCATION} \
-
+            -o ${VM_BASE_IMAGE_LOCATION} 
+    else
+        #If image exists check sums. If differs a new image is available
+        vm_image_checksum
+        if [ "${CHECKSUM_OK}" = "N" ];
+            echo "A new versión of base image is available and it will be downloaded."
+            rm "${VM_BASE_IMAGE_LOCATION}"
+            curl -L ${VM_BASE_IMAGE_URL} \
+                -o ${VM_BASE_IMAGE_LOCATION} 
+        fi
     fi
 }
 
@@ -386,7 +408,7 @@ vm_create_guest_image()
         qemu-img resize \
             "${VM_BASE_DIR}/images/${VM_HOSTNAME}.${VM_DISK_EXTENSION}" \
             "${VM_DISK_SIZE}G"
-        sudo chown -R ${USER_GROUP} ${VM_BASE_DIR}/images/${VM_HOSTNAME}.${VM_DISK_EXTENSION}
+        sudo chown -R ${USER}:${LIBVIRT_GROUP} ${VM_BASE_DIR}/images/${VM_HOSTNAME}.${VM_DISK_EXTENSION}
     else
         echo "${VM_BASE_DIR}/images/${VM_HOSTNAME}.${VM_DISK_EXTENSION} already exists. Delete VM with "delete" option"
         exit 1
@@ -505,20 +527,6 @@ vm_gen_meta_data()
 {
     cp files/meta-data "$VM_BASE_DIR/init/${VM_HOSTNAME}-meta-data"
     sed -i "s|__VMname__|${VM_HOSTNAME}|g" "$VM_BASE_DIR/init/${VM_HOSTNAME}-meta-data"
-}
-
-vm_set_guest_type()
-{
-    if [[ "$VM_OS_TYPE" == "BSD" ]]; then
-        if [[ "${VM_OS_VARIANT}" == *"freebsd"* ]]; then
-            VM_OS_VARIANT=${GUEST_OS_TYPE_FREEBSD}
-        fi
-        if [[ "${VM_OS_VARIANT}" == *"openbsd"* ]]; then
-            VM_OS_VARIANT=${GUEST_OS_TYPE_OPENBSD}
-        fi
-    elif  [[ "${VM_OS_VARIANT}" == *"debian13"* ]]; then
-        VM_OS_VARIANT=${GUEST_OS_TYPE_DEBIAN}
-    fi
 }
 
 vm_guest_install()
