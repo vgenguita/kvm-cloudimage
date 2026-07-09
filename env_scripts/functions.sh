@@ -381,7 +381,7 @@ vm_download_base_image()
     else
         #If image exists check sums. If differs a new image is available
         vm_image_checksum
-        if [ "${CHECKSUM_OK}" = "N" ];
+        if [ "${CHECKSUM_OK}" = "N" ]; then
             echo "A new versión of base image is available and it will be downloaded."
             rm "${VM_BASE_IMAGE_LOCATION}"
             curl -L ${VM_BASE_IMAGE_URL} \
