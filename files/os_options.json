@@ -77,8 +77,8 @@
       "os_type": "GNULinux",
       "variant": "fedora41",
       "url": "    https://download.fedoraproject.org/pub/fedora/linux/releases/44/Cloud/x86_64/images/Fedora-Cloud-Base-Generic-44-1.7.x86_64.qcow2",
-      "origin_image_name": "Fedora-Cloud-Base-Generic-42-1.1.x86_64.qcow2",
-      "md5sum": "https://mirror.in2p3.fr/pub/fedora/linux/releases/44/Cloud/x86_64/images/Fedora-Cloud-44-1.7-x86_64-CHECKSUMM",
+      "origin_image_name": "Fedora-Cloud-Base-Generic-44-1.7.x86_64.qcow2",
+      "md5sum": "https://mirror.in2p3.fr/pub/fedora/linux/releases/44/Cloud/x86_64/images/Fedora-Cloud-44-1.7-x86_64-CHECKSUM",
       "boot_type": "bios"
     } ,
     {

@@ -129,7 +129,7 @@ case "${ACTION}" in
             #Compare hashes
             #compare_checksum
             vm_image_checksum
-            if [ "${CHECKSUM_OK}" = "Y" ];
+            if [ "${CHECKSUM_OK}" = "Y" ]; then
                 #Create guest image
                 vm_create_guest_image
             else

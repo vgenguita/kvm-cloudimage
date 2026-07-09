@@ -29,7 +29,7 @@ case $DISTRO in
     esac
 
 ## Permissions and groups
-LIBVIRT_GROUP=$(grep qemu /etc/group | awk -F ':' '{print $1}')
+LIBVIRT_GROUP=$(grep qemu /etc/group | awk -F ':' '{print $1}' | grep -v kvm)
 
 sudo chmod 750 "${HOME}"
 sudo usermod -aG libvirt "${USER}"
