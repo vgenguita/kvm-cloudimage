@@ -19,21 +19,25 @@ VM_DISK_SIZE=10
 
 # Function to display usage message
 usage() {
-    less << EOF
+  cat << EOF | less -F -X
 NAME
   $0
 
 USAGE
-    Usage:  $0 create -n NAME [-b BRIDGE] [-r RAM] [-c VCPUS] [-s DISK] [-v]
-            $0 delete NAME
-            $0 info NAME
-            $0 connect NAME
-            $0 install NAME
-            $0 list
+  Usage:  $0 create -n NAME [-b BRIDGE] [-r RAM] [-c VCPUS] [-s DISK] [-v]
+          $0 delete NAME
+          $0 stop NAME
+          $0 start NAME
+          $0 info NAME
+          $0 connect NAME
+          $0 install NAME
+          $0 list
 
 ACTIONS
   create     Create a new virtual machine
   delete     Delete a virtual machine
+  stop       Stop a virtual machine
+  start      Start a virtual machine
   list       List all defined virtual machines
   info       Show information about a virtual machine
   connect    Connect to the console of a virtual machine
@@ -55,7 +59,7 @@ AUTHOR
 COPYRIGHT
   This is free software; see the source for copying conditions.
 EOF
-    exit 1
+  exit 1
 }
 # Check if at least one argument is provided
 if [ $# -eq 0 ]; then
@@ -149,7 +153,7 @@ case "${ACTION}" in
         vm_guest_install
         ;;
 
-    delete|info|connect)
+    delete|info|connect|stop|start)
         # These actions require a NAME directly as first argument after ACTION
         if [ $# -ne 1 ]; then
             echo "Error: ${ACTION} requires a VM name as argument." >&2
@@ -163,6 +167,10 @@ case "${ACTION}" in
             vm_net_get_ip ${VM_HOSTNAME}
 	    elif [[ "${ACTION}" == 'connect' ]]; then
             vm_connect ${VM_HOSTNAME}
+        elif [[ "${ACTION}" == 'stop' ]]; then
+            vm_stop ${VM_HOSTNAME}
+        elif [[ "${ACTION}" == 'start' ]]; then
+            vm_start ${VM_HOSTNAME}
 	    fi
         ;;
     install)

@@ -252,7 +252,7 @@ vm_image_checksum()
 ## List Installed VMS
 vm_list()
 {
-    virsh list
+    virsh list --all
 }
 
 vm_net_get_mac()
@@ -359,6 +359,18 @@ vm_delete ()
     # Handle case where VM image is not found
     echo "Cannot find VM image file '$VM_IMAGE_PATH'. No action taken."
     fi
+}
+
+vm_stop ()
+{
+    local VM=$1
+    virsh shutdown ${VM}
+}
+
+vm_start ()
+{
+    local VM=$1
+    virsh start ${VM}
 }
 
 vm_download_base_image()

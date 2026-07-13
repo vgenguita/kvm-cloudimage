@@ -47,13 +47,13 @@ echo "LIBVIRT_GROUP=\"${LIBVIRT_GROUP}\""  >> "${VM_CONFIG_DIR}/setup"
 #Isolated network
 cp files/network-host-only.xml ${VM_BASE_DIR}/xml/network-host-only.xml
 sed -i "s/YOURNETWORK/${VM_NETWORK_HOSTONLY}/g" ${VM_BASE_DIR}/xml/network-host-only.xml
-virsh net-define ${VM_BASE_DIR}/xml/network-host-only.xml
-virsh net-autostart ${VM_NETWORK_HOSTONLY}
-virsh net-start ${VM_NETWORK_HOSTONLY}
+virsh --connect qemu:///system net-define ${VM_BASE_DIR}/xml/network-host-only.xml
+virsh --connect qemu:///system net-autostart ${VM_NETWORK_HOSTONLY}
+virsh --connect qemu:///system net-start ${VM_NETWORK_HOSTONLY}
 #NAT
 cp files/network-nat.xml ${VM_BASE_DIR}/xml/network-nat.xml
 sed -i "s/YOURNETWORK/${VM_NETWORK_NAT}/g" ${VM_BASE_DIR}/xml/network-nat.xml
-virsh net-define ${VM_BASE_DIR}/xml/network-nat.xml
-virsh net-autostart ${VM_NETWORK_NAT}
-virsh net-start ${VM_NETWORK_NAT}
+virsh --connect qemu:///system net-define ${VM_BASE_DIR}/xml/network-nat.xml
+virsh --connect qemu:///system net-autostart ${VM_NETWORK_NAT}
+virsh --connect qemu:///system net-start ${VM_NETWORK_NAT}
 echo "Setup completed. Logout and login your session again now."
